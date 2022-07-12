@@ -69,44 +69,16 @@ def main():  # noqa: C901
     algo = args.algo
     folder = args.folder
 
-    try:
-        _, model_path, log_path = get_model_path(
-            args.exp_id,
-            folder,
-            algo,
-            env_id,
-            args.load_best,
-            args.load_checkpoint,
-            args.load_last_checkpoint,
-        )
-    except (AssertionError, ValueError) as e:
-        # Special case for rl-trained agents
-        # auto-download from the hub
-        if "rl-trained-agents" not in folder:
-            raise e
-        else:
-            print("Pretrained model not found, trying to download it from sb3 Huggingface hub: https://huggingface.co/sb3")
-            # Auto-download
-            download_from_hub(
-                algo=algo,
-                env_id=env_id,
-                exp_id=args.exp_id,
-                folder=folder,
-                organization="sb3",
-                repo_name=None,
-                force=False,
-            )
-            # Try again
-            _, model_path, log_path = get_model_path(
-                args.exp_id,
-                folder,
-                algo,
-                env_id,
-                args.load_best,
-                args.load_checkpoint,
-                args.load_last_checkpoint,
-            )
-
+    _, model_path, log_path = get_model_path(
+        args.exp_id,
+        folder,
+        algo,
+        env_id,
+        args.load_best,
+        args.load_checkpoint,
+        args.load_last_checkpoint,
+    )
+    
     print(f"Loading {model_path}")
 
     # Off-policy algorithm only support one env for now
