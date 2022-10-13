@@ -1,7 +1,1 @@
-gym==0.21
-stable-baselines3==1.5.1a7
-sb3-contrib==1.5.1a8
-box2d-py==2.3.8
-pyyaml==5.1
-optuna==2.10.1
-pyglet==1.5.26
+https://pypi.anaconda.org/intel/simple/tensorflow/1.2.0/tensorflow-1.2.0-cp36-cp36m-linux_x86_64.whl
