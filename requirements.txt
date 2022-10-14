@@ -1,1 +1,0 @@
-https://pypi.anaconda.org/intel/simple/tensorflow/1.2.0/tensorflow-1.2.0-cp36-cp36m-linux_x86_64.whl
