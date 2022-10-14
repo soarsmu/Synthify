@@ -1,5 +1,8 @@
+from __future__ import print_function
+
 import time
 import numpy as np
+
 
 def distance_between_linear_function_and_neural_network(env, actor, K, terminal_err=0.01, rounds=10, steps=500):
 	"""sum distance between the output of LF and NN 

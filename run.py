@@ -9,7 +9,7 @@ if __name__ == "__main__":
     parser.add_argument("--env", default="cartpole", type=str, help="The selected environment.")
     parser.add_argument("--do_train", action="store_true", help="Train RL controller.")
     parser.add_argument("--do_test", action="store_true", help="Test RL controller")
-    parser.add_argument("--test_episodes", default="1000", help="test_episodes", type=int)
+    parser.add_argument("--test_episodes", default=50, help="test_episodes", type=int)
     # parser.add_argument("--do_retrain", action="store_true", help="retrain RL controller")
     args = parser.parse_args()
 
@@ -20,8 +20,7 @@ if __name__ == "__main__":
     DDPG_args["enable_test"] = args.do_test, 
     DDPG_args["test_episodes"] = args.test_episodes
 
-    actor =  DDPG(env, DDPG_args)
-
+    actor = DDPG(env, DDPG_args)
     actor.sess.close()
 
 

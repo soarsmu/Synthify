@@ -1,6 +1,9 @@
+from __future__ import print_function
+
 import os
 import metrics
 from metrics import timeit
+
 
 ################ Replay Buffer for DDPG ######################
 import random
