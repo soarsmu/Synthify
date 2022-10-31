@@ -1,4 +1,5 @@
 from __future__ import print_function
+from __future__ import division
 
 import os
 import metrics
@@ -372,13 +373,15 @@ def train(sess, env, args, actor, critic, actor_noise, restorer, replay_buffer=N
 
 
 @timeit
-def test(env, actor, args, actor_noise):
+def test(env, cur_seq, actor, args, actor_noise):
+# def test(env, actor, args, actor_noise):
     fail_time = 0
     success_time = 0
     fail_list = []
 
     for ep in range(args["test_episodes"]):
-        s = env.reset()
+        s = env.reset(cur_seq)
+        # s = env.reset()
         init_s = s
         print("----ep: {} ----".format(ep))
         for i in range(args["test_episodes_len"]):
@@ -406,7 +409,8 @@ def test(env, actor, args, actor_noise):
         print("initial state: \n{}\nend state: \n{}\n----".format(i, e))
 
 
-def DDPG(env, args, replay_buffer=None):
+def DDPG(env, cur_seq, args, replay_buffer=None):
+# def DDPG(env, args, replay_buffer=None):
     sess = tf.Session()
     np.random.seed(int(args["random_seed"]))
     tf.set_random_seed(int(args["random_seed"]))
@@ -415,7 +419,8 @@ def DDPG(env, args, replay_buffer=None):
     action_dim = env.action_dim
     assert (env.u_max == -env.u_min).all()
     action_bound = env.u_max[0]
-
+    # print(int(args["minibatch_size"]))
+    # exit()
     actor = ActorNetwork(sess, list(args["actor_structure"]), state_dim, action_dim, action_bound,
                          float(args["actor_lr"]), float(args["tau"]),
                          int(args["minibatch_size"]))
@@ -437,7 +442,8 @@ def DDPG(env, args, replay_buffer=None):
     train(sess, env, args, actor, critic, actor_noise, restorer, replay_buffer)
 
     if args["enable_test"]:
-        test(env, actor, args, actor_noise)
+        test(env, cur_seq, actor, args, actor_noise)
+        # test(env, actor, args, actor_noise)
 
     return actor
 
