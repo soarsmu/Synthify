@@ -29,5 +29,3 @@ if __name__ == "__main__":
     actor = DDPG(env, cur_seq, DDPG_args)
     actor.sess.close()
 
-    actor = DDPG(env, cur_seq, DDPG_args)
-    actor.sess.close()
