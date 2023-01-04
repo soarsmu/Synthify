@@ -3,8 +3,6 @@ import argparse
 
 import numpy as np
 
-from multiprocessing import Pool
-from tqdm import tqdm
 from DDPG import DDPG
 from envs import ENV_CLASSES
 
@@ -20,7 +18,7 @@ def policy_distance(env, policy, coffset, len_episodes):
 
     return distance
 
-
+# TODO: add logger
 def evolution_policy(env, policy, n_vars, len_episodes, n_population=50, n_iterations=5000, sigma=0.1, alpha=0.1):
     coffset = np.random.randn(n_vars)
 
@@ -60,8 +58,7 @@ if __name__ == "__main__":
     DDPG_args["test_episodes"] = args.test_episodes
 
     policy = DDPG(env, DDPG_args)
-    np.random.seed(123)
-    evolution_policy(env, policy, 4, 100)
+    evolution_policy(env, policy, 2, 100)
     policy.sess.close()
 
 
