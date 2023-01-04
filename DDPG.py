@@ -373,19 +373,17 @@ def train(sess, env, args, actor, critic, actor_noise, restorer, replay_buffer=N
 
 
 @timeit
-def test(env, cur_seq, actor, args, actor_noise):
-# def test(env, actor, args, actor_noise):
+def eval(env, actor, args):
     fail_time = 0
     success_time = 0
     fail_list = []
 
     for ep in range(args["test_episodes"]):
-        s = env.reset(cur_seq)
-        # s = env.reset()
+        s = env.reset()
         init_s = s
         print("----ep: {} ----".format(ep))
         for i in range(args["test_episodes_len"]):
-            a = actor.predict(np.reshape(np.array(s), (1, actor.s_dim))) #+ actor_noise()
+            a = actor.predict(np.reshape(np.array(s), (1, actor.s_dim)))
             s, r, terminal = env.step(a.reshape(actor.a_dim, 1))
 
             if terminal:
@@ -409,8 +407,7 @@ def test(env, cur_seq, actor, args, actor_noise):
         print("initial state: \n{}\nend state: \n{}\n----".format(i, e))
 
 
-def DDPG(env, cur_seq, args, replay_buffer=None):
-# def DDPG(env, args, replay_buffer=None):
+def DDPG(env, args, replay_buffer=None):
     sess = tf.Session()
     np.random.seed(int(args["random_seed"]))
     tf.set_random_seed(int(args["random_seed"]))
@@ -438,12 +435,17 @@ def DDPG(env, cur_seq, args, replay_buffer=None):
         print("sess has been restored from", args["model_path"])
 
     actor_noise = OrnsteinUhlenbeckActionNoise(mu=np.zeros(action_dim))
+    # if args["enable_retrain"]:
+    #     train(sess, env, args, actor, critic, actor_noise, restorer, replay_buffer)
 
-    train(sess, env, args, actor, critic, actor_noise, restorer, replay_buffer)
+    # if args["enable_eval"]:
+    #     eval(env, actor, args)
 
-    if args["enable_test"]:
-        test(env, cur_seq, actor, args, actor_noise)
-        # test(env, actor, args, actor_noise)
+    # if args["enable_fuzzing"]:
+    #     fuzzing(env, actor)
+
+    # if args["enable_falsification"]:
+    #     falsification(env, actor)
 
     return actor
 
