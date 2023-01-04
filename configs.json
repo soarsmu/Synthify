@@ -1,10 +1,10 @@
 {
     "cartpole":
-    { 
+    {
         "actor_lr": 0.0001,
         "critic_lr": 0.001,
         "actor_structure": [300, 250, 200],
-        "critic_structure": [300, 200], 
+        "critic_structure": [300, 200],
         "buffer_size": 1000000,
         "gamma": 0.99,
         "max_episode_len": 100,
@@ -16,11 +16,11 @@
         "test_episodes_len": 5000
     },
     "pendulum":
-    { 
+    {
         "actor_lr": 0.0001,
         "critic_lr": 0.001,
         "actor_structure": [280, 240, 200],
-        "critic_structure": [240, 200], 
+        "critic_structure": [240, 200],
         "buffer_size": 1000000,
         "gamma": 0.99,
         "max_episode_len": 100,
