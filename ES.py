@@ -2,8 +2,10 @@ import json
 import argparse
 
 import numpy as np
+import matplotlib.pyplot as plt
 
 from DDPG import DDPG
+from metrics import timeit
 from envs import ENV_CLASSES
 
 
@@ -16,26 +18,34 @@ def policy_distance(env, policy, coffset, len_episodes):
         distance -= np.abs(a_policy - a_linear)
         s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
 
-    return distance
+    return distance/len_episodes
 
 # TODO: add logger
-def evolution_policy(env, policy, n_vars, len_episodes, n_population=50, n_iterations=5000, sigma=0.1, alpha=0.1):
+@timeit
+def evolution_policy(env, policy, n_vars, len_episodes, n_population=50, n_iterations=2500, sigma=0.1, alpha=0.05):
+    mean_dist = []
     coffset = np.random.randn(n_vars)
 
+
     for iter in range(n_iterations):
-        noise = np.random.randn(n_population, n_vars)
+        noise = np.random.randn(int(n_population/2), n_vars)
+        noise = np.vstack((noise, -noise))
+
         distance = np.zeros(n_population)
         for p in range(n_population):
             new_coffset = coffset + sigma * noise[p]
             distance[p] = policy_distance(env, policy, new_coffset, len_episodes)
 
-        std_distance = (distance - np.mean(distance)) / np.std(distance)
+        # std_distance = (distance - np.mean(distance)) / np.std(distance)
 
-        coffset = coffset + alpha / (n_population * sigma) * np.dot(noise.T, std_distance)
+        coffset = coffset + alpha / (n_population * sigma) * np.dot(noise.T, distance)
+        mean_dist.append(np.mean(distance))
 
         print(coffset)
-        print(policy_distance(env, policy, coffset, len_episodes))
-
+        print(np.mean(distance))
+    plt.plot(mean_dist)
+    plt.show()
+    plt.savefig("1.jpg")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Running Options")
@@ -58,7 +68,7 @@ if __name__ == "__main__":
     DDPG_args["test_episodes"] = args.test_episodes
 
     policy = DDPG(env, DDPG_args)
-    evolution_policy(env, policy, 2, 100)
+    evolution_policy(env, policy, 2, 10)
     policy.sess.close()
 
 
