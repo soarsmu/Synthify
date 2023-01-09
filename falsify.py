@@ -5,24 +5,25 @@ import argparse
 
 import numpy as np
 
+from tqdm import tqdm
 from DDPG import DDPG
 from envs import ENV_CLASSES
 
-def monitor(vars, specification):
+def init_monitor(vars, specification):
     # # stl
-    spec = rtamt.STLDiscreteTimeSpecification()
+    monitor = rtamt.STLDiscreteTimeSpecification()
     for var in vars:
-        spec.declare_var(var, 'float')
-    spec.spec = specification
+        monitor.declare_var(var, 'float')
+    monitor.spec = specification
 
     try:
-        spec.parse()
-        spec.pastify()
+        monitor.parse()
+        monitor.pastify()
     except rtamt.RTAMTException as err:
         print('RTAMT Exception: {}'.format(err))
         sys.exit()
 
-    rob = spec.update(0, [('a', 100.0), ('b', 20.0)])
+    return monitor
 
 
 if __name__ == "__main__":
@@ -47,32 +48,53 @@ if __name__ == "__main__":
 
     policy = DDPG(env, DDPG_args)
 
-    vars = ['a']
-    specification = 'always[0,5000] (0.5 >= a)'
-    spec = rtamt.STLDiscreteTimeSpecification()
-    for var in vars:
-        spec.declare_var(var, 'float')
-    spec.spec = specification
+    vars = ['a', 'b', "c", "d"]
+    specifications = ['always[0,5000] (a <= 0.05)', 'always[0,5000] (a >= -0.05)', 'always[0,5000] (b <= 0.1)', 'always[0,5000] (b >= -0.1)', 'always[0,5000] (c <= 0.05)', 'always[0,5000] (c >= -0.05)', 'always[0,5000] (d <= 0.05)', 'always[0,5000] (d >= -0.05)']
 
-    try:
-        spec.parse()
-        spec.pastify()
-    except rtamt.RTAMTException as err:
-        print('RTAMT Exception: {}'.format(err))
-        sys.exit()
+    min_robs = [0, 0, 0, 0, 0, 0, 0, 0]
+    prob = [0, 0, 0, 0, 0, 0, 0, 0]
+    times = [0, 0, 0, 0, 0, 0, 0, 0]
 
-    s = env.reset()
-    for i in range(5000):
-        # print(s)
-        a_policy = policy.predict(np.reshape(np.array(s), (1, policy.s_dim)))
-        s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
-        rob = spec.update(i, [('a', s[0])])
-        print(rob)
-        if rob < 0:
-            print("Falsified at step {}".format(i))
-            print(rob)
-            print(s)
-            break
+    def sample_spec(specifications, prob, eps=0.1):
+        p = np.random.uniform(0, 1)
+        if(p > eps):
+            arm_to_pull = np.argmax(prob)
+        else:
+            arm_to_pull = np.random.randint(0, len(specifications), 1)[0]
+
+        return arm_to_pull
+
+    for i in range(10):
+        spec_index = sample_spec(specifications, prob)
+        print(spec_index)
+        times[spec_index] += 1
+        monitor = init_monitor(vars, specifications[spec_index])
+
+        falied_tests = []
+
+        s = env.reset()
+        for iter in tqdm(range(20)):
+            noise = np.array([0.01, 0.01, 0.01, 0.01])
+            # print(s)
+            for sign in [-1, 1]:
+                s += sign * noise.reshape(4, 1)
+                s_inital = s
+                robs = []
+                for i in range(50):
+                    a_policy = policy.predict(np.reshape(np.array(s), (1, policy.s_dim)))
+                    s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
+                    rob = monitor.update(i, [('a', s[0]), ('b', s[1]), ('c', s[2]), ('d', s[3])])
+                    robs.append(rob)
+                    if rob < 0:
+                        print("Falsified at step {}".format(i))
+                        falied_tests.append(s)
+                        break
+
+                min_robs[spec_index] = -min(min_robs[spec_index], min(robs))
+
+
+        prob[spec_index] = prob[spec_index] / (1 / times[spec_index]) * (min_robs[spec_index] - prob[spec_index])
+        print(prob)
+        print(min_robs)
 
     policy.sess.close()
-
