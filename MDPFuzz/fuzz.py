@@ -111,7 +111,7 @@ class fuzzing:
         states = np.array(states)
         states_cond = np.zeros((states.shape[0]-1, states.shape[1] * 2))
         for i in range(states.shape[0]-1):
-            states_cond[i] = np.hstack((states[i], states[i + 1]))
+            states_cond[i] = np.hstack((states[i], states[i + 1])).reshape(states_cond[i].shape)
 
         return states, states_cond
 
@@ -123,7 +123,7 @@ class fuzzing:
             temp[1] = temp[0] * np.mean(data_corpus[i:i+15], axis=0)
             temp[2] = np.zeros((data_corpus.shape[1], data_corpus.shape[1]))
             for j in range(i, i+15):
-                temp[2] += temp[0] * np.matmul(data_corpus[j: j+1].T, data_corpus[j: j+1])
+                temp[2] += temp[0] * np.matmul(data_corpus[j: j+1].squeeze().T, data_corpus[j: j+1].squeeze())
             temp[2] /= 15
             res.append(temp)
 
@@ -132,7 +132,7 @@ class fuzzing:
         covariances = np.zeros((self.GMMK, data_corpus.shape[1], data_corpus.shape[1]))
         for i in range(self.GMMK):
             weights[i] = res[i][0]
-            means[i] = res[i][1] / res[i][0]
+            means[i] = (res[i][1] / res[i][0]).squeeze()
             covariances[i] = np.eye(data_corpus.shape[1])
 
         self.GMM = dict()
@@ -170,7 +170,7 @@ class fuzzing:
         first_frame = states_seq[0:1]
         GMMpdf = np.zeros(self.GMMK)
         for k in range(self.GMMK):
-            GMMpdf[k] = self.GMM["weights"][k] * multivariate_normal.pdf(first_frame, self.GMM["means"][k], self.GMM["covariances"][k])
+            GMMpdf[k] = self.GMM["weights"][k].squeeze() * multivariate_normal.pdf(first_frame.squeeze(), self.GMM["means"][k].squeeze(), self.GMM["covariances"][k].squeeze())
         GMMpdf += 1e-5
         GMMpdfvalue = np.sum(GMMpdf)
         first_frame_pdf = GMMpdf
@@ -180,7 +180,7 @@ class fuzzing:
 
         for i in range(states_seq.shape[0]):
             for k in range(self.GMMK):
-                single_frame_pdf[i, k] = self.GMM["weights"][k] * multivariate_normal.pdf(states_seq[i], self.GMM["means"][k], self.GMM["covariances"][k])
+                single_frame_pdf[i, k] = self.GMM["weights"][k].squeeze() * multivariate_normal.pdf(states_seq[i].squeeze(), self.GMM["means"][k].squeeze(), self.GMM["covariances"][k].squeeze())
         single_frame_pdf += 1e-5
 
         for i in range(states_seq_cond.shape[0]):
@@ -212,14 +212,14 @@ class fuzzing:
             for i in range(self.GMMK):
                 new_S[i][0] = self.GMMupdate["S"][i][0] + gamma * (GMMpdf[i] - self.GMMupdate["S"][i][0])
                 new_S[i][1] = self.GMMupdate["S"][i][1] + gamma * (GMMpdf[i]*first_frame - self.GMMupdate["S"][i][1])
-                new_S[i][2] = self.GMMupdate["S"][i][2] + gamma * (GMMpdf[i]*np.matmul(first_frame.T, first_frame) - self.GMMupdate["S"][i][2])
+                new_S[i][2] = self.GMMupdate["S"][i][2].squeeze() + gamma * (GMMpdf[i].squeeze()*np.matmul(first_frame.T.squeeze(), first_frame.squeeze()) - self.GMMupdate["S"][i][2].squeeze())
 
             self.GMMupdate["S"] = copy.deepcopy(new_S)
 
             for i in range(self.GMMK):
                 self.GMM["weights"][i] = new_S[i][0]
-                self.GMM["means"][i] = new_S[i][1] / new_S[i][0]
-                self.GMM["covariances"][i] = (new_S[i][2] - np.matmul(self.GMM["means"][i].reshape(1, -1).T, new_S[i][1])) / new_S[i][0]
+                self.GMM["means"][i] = (new_S[i][1] / new_S[i][0]).squeeze()
+                self.GMM["covariances"][i] = (new_S[i][2].squeeze() - np.matmul(self.GMM["means"][i].reshape(1, -1).T.squeeze(), new_S[i][1].squeeze())) / new_S[i][0].squeeze()
                 W, V = np.linalg.eigh(self.GMM["covariances"][i])
                 W = np.maximum(W, 1e-3)
                 D = np.diag(W)
@@ -275,7 +275,7 @@ if __name__ == "__main__":
     actor = DDPG(env, cur_seq, DDPG_args)
     actor.sess.close()
     cur_seq = fuzzer.mutation(cur_seq)
-    
+
     actor = DDPG(env, cur_seq, DDPG_args)
     actor.sess.close()
     print(cur_seq)
