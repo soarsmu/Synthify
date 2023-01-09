@@ -1,5 +1,16 @@
 import numpy as np
 
+class Bandit():
+    def __init__(self, arms_prob):
+        self.arms_prob = arms_prob
+        self.num_arms = len(arms_prob)
+
+    def pull(self, i):
+        if np.random.uniform(0, 1) < self.arms_prob[i]:
+            return 1
+        else:
+            return 0
+
 class Epsilon_Greedy():
     def __init__(self, bandit, eps):
         self.bandit = bandit

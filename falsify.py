@@ -10,7 +10,6 @@ from DDPG import DDPG
 from envs import ENV_CLASSES
 
 def init_monitor(vars, specification):
-    # # stl
     monitor = rtamt.STLDiscreteTimeSpecification()
     for var in vars:
         monitor.declare_var(var, 'float')
@@ -51,11 +50,11 @@ if __name__ == "__main__":
     vars = ['a', 'b', "c", "d"]
     specifications = ['always[0,5000] (a <= 0.05)', 'always[0,5000] (a >= -0.05)', 'always[0,5000] (b <= 0.1)', 'always[0,5000] (b >= -0.1)', 'always[0,5000] (c <= 0.05)', 'always[0,5000] (c >= -0.05)', 'always[0,5000] (d <= 0.05)', 'always[0,5000] (d >= -0.05)']
 
-    min_robs = [0, 0, 0, 0, 0, 0, 0, 0]
+    min_robs = [100, 100, 100, 100, 100, 100, 100, 100]
     prob = [0, 0, 0, 0, 0, 0, 0, 0]
     times = [0, 0, 0, 0, 0, 0, 0, 0]
 
-    def sample_spec(specifications, prob, eps=0.1):
+    def sample_spec(specifications, prob, eps=0.5):
         p = np.random.uniform(0, 1)
         if(p > eps):
             arm_to_pull = np.argmax(prob)
@@ -64,11 +63,11 @@ if __name__ == "__main__":
 
         return arm_to_pull
 
-    for i in range(10):
-        spec_index = sample_spec(specifications, prob)
-        print(spec_index)
-        times[spec_index] += 1
-        monitor = init_monitor(vars, specifications[spec_index])
+    for p in range(len(specifications)):
+        times[p] += 1
+        prob[p] += 1
+        print(prob)
+        monitor = init_monitor(vars, specifications[p])
 
         falied_tests = []
 
@@ -80,7 +79,36 @@ if __name__ == "__main__":
                 s += sign * noise.reshape(4, 1)
                 s_inital = s
                 robs = []
-                for i in range(50):
+                for i in range(100):
+                    a_policy = policy.predict(np.reshape(np.array(s), (1, policy.s_dim)))
+                    s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
+                    rob = monitor.update(i, [('a', s[0]), ('b', s[1]), ('c', s[2]), ('d', s[3])])
+                    robs.append(rob)
+                    if rob < 0:
+                        # print("Falsified at step {}".format(i))
+                        falied_tests.append(s)
+                        break
+
+                min_robs[p] = -min(min_robs[p], min(robs))
+        prob[p] = prob[p] / (1 / times[p]) * (min_robs[p] - prob[p])
+    
+    falied_tests = []
+    for i in range(10):
+        spec_index = sample_spec(specifications, prob)
+        times[spec_index] += 1
+        prob[spec_index] += 1
+        
+        monitor = init_monitor(vars, specifications[spec_index])
+        s = env.reset()
+        for iter in tqdm(range(20)):
+            flag = False
+            noise = np.array([0.01, 0.01, 0.01, 0.01])
+            # print(s)
+            for sign in [-1, 1]:
+                s += sign * noise.reshape(4, 1)
+                s_inital = s
+                robs = []
+                for i in range(100):
                     a_policy = policy.predict(np.reshape(np.array(s), (1, policy.s_dim)))
                     s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
                     rob = monitor.update(i, [('a', s[0]), ('b', s[1]), ('c', s[2]), ('d', s[3])])
@@ -88,13 +116,17 @@ if __name__ == "__main__":
                     if rob < 0:
                         print("Falsified at step {}".format(i))
                         falied_tests.append(s)
+                        flag = True
                         break
+                if flag:
+                    break
+            min_robs[spec_index] = -min(min_robs[spec_index], min(robs))
+            if flag:
+                break
 
-                min_robs[spec_index] = -min(min_robs[spec_index], min(robs))
-
-
+        print(prob)
         prob[spec_index] = prob[spec_index] / (1 / times[spec_index]) * (min_robs[spec_index] - prob[spec_index])
         print(prob)
         print(min_robs)
-
+    print(len(falied_tests))
     policy.sess.close()
