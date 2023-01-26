@@ -24,6 +24,7 @@ def evolution_policy(env, policy, n_vars, len_episodes, n_population=100, n_iter
             for p in range(n_population):
                 new_coffset = coffset + sigma * noise[p]
                 a_linear = new_coffset[:n_vars-1].dot(s)+ new_coffset[n_vars-1]
+                print(a_linear)
                 distance[p] = - np.abs(a_policy - a_linear)
             std_distance = (distance - np.mean(distance)) / np.std(distance)
             coffset = coffset + alpha / (n_population * sigma) * np.dot(noise.T, std_distance)
@@ -79,8 +80,8 @@ if __name__ == "__main__":
     DDPG_args["test_episodes"] = args.test_episodes
 
     policy = DDPG(env, DDPG_args)
-    # evolution_policy(env, policy, 3, 1000)
-    evolution_dynamics(env, 0, policy, 3, 1000)
+    evolution_policy(env, policy, 3, 1000)
+    # evolution_dynamics(env, 0, policy, 3, 1000)
     policy.sess.close()
 
 
