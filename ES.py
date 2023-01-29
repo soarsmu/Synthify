@@ -1,15 +1,16 @@
 import json
+import logging
 import argparse
 import numpy as np
 
 from tqdm import tqdm
 from DDPG import DDPG
-from metrics import timeit
+
 from envs import ENV_CLASSES
 
-# TODO: add logger
-@timeit
-def evolution_policy(env, policy, n_vars, len_episodes, n_population=100, n_iterations=200, sigma=0.1, alpha=0.05):
+logging.getLogger().setLevel(logging.INFO)
+
+def evolution_policy(env, policy, n_vars, len_episodes, n_population=50, n_iterations=1, sigma=0.1, alpha=0.05):
 
     coffset = np.random.randn(n_vars)
 
@@ -24,16 +25,14 @@ def evolution_policy(env, policy, n_vars, len_episodes, n_population=100, n_iter
             for p in range(n_population):
                 new_coffset = coffset + sigma * noise[p]
                 a_linear = new_coffset[:n_vars-1].dot(s)+ new_coffset[n_vars-1]
-                print(a_linear)
                 distance[p] = - np.abs(a_policy - a_linear)
             std_distance = (distance - np.mean(distance)) / np.std(distance)
             coffset = coffset + alpha / (n_population * sigma) * np.dot(noise.T, std_distance)
             s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
+    return coffset
 
 
-# TODO: add logger
-@timeit
-def evolution_dynamics(env, para, policy, n_vars, len_episodes, n_population=100, n_iterations=200, sigma=0.1, alpha=0.05):
+def evolution_dynamics(env, para, policy, n_vars, len_episodes, n_population=50, n_iterations=1, sigma=0.1, alpha=0.05):
 
     coffset = np.random.randn(n_vars)
 
@@ -55,9 +54,8 @@ def evolution_dynamics(env, para, policy, n_vars, len_episodes, n_population=100
             std_distance = (distance - np.mean(distance)) / np.std(distance)
 
             coffset = coffset + alpha / (n_population * sigma) * np.dot(noise.T, std_distance)
-            print(coffset)
-            print(np.mean(distance))
             s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
+    return coffset
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Running Options")
@@ -80,8 +78,8 @@ if __name__ == "__main__":
     DDPG_args["test_episodes"] = args.test_episodes
 
     policy = DDPG(env, DDPG_args)
-    evolution_policy(env, policy, 3, 1000)
-    # evolution_dynamics(env, 0, policy, 3, 1000)
+    # evolution_policy(env, policy, 3, 1000)
+    evolution_dynamics(env, 0, policy, 3, 1000)
     policy.sess.close()
 
 

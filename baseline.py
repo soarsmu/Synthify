@@ -1,90 +1,74 @@
-import sys
+import time
 import json
-import rtamt
+import logging
 import argparse
 
 import numpy as np
 
-from tqdm import tqdm
 from DDPG import DDPG
 from envs import ENV_CLASSES
+from numpy.typing import NDArray
 
-# from staliro.core import best_eval, best_run
-from staliro.optimizers import UniformRandom
+from staliro.models import ModelData, SignalTimes, SignalValues, StaticInput, blackbox
+from staliro.optimizers import DualAnnealing, UniformRandom
 from staliro.options import Options
-from staliro.models import State, ode
 from staliro.specifications import RTAMTDense
-from staliro.staliro import simulate_model, staliro
+from staliro.staliro import staliro
 
-env = ENV_CLASSES["cartpole"]()
-with open("configs.json") as f:
-    configs = json.load(f)
-
-DDPG_args = configs["cartpole"]
-DDPG_args["enable_retrain"] = False
-DDPG_args["enable_eval"] = False
-DDPG_args["enable_fuzzing"] = False
-DDPG_args["enable_falsification"] = False
-
-DDPG_args["test_episodes"] = 5000
-
-policy = DDPG(env, DDPG_args)
-
-@ode()
-def model(time: float, state: State, _) -> State:
-    a_policy = policy.predict(np.reshape(np.array(state), (1, policy.s_dim)))
-    s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
-
-    return np.ndarray(s)
-
+logging.getLogger().setLevel(logging.INFO)
 
 if __name__ == "__main__":
+
     parser = argparse.ArgumentParser(description="Running Options")
     parser.add_argument("--env", default="pendulum", type=str, help="The selected environment.")
-    parser.add_argument("--do_eval", action="store_true", help="Test RL controller")
-    parser.add_argument("--test_episodes", default=50, help="test_episodes", type=int)
-    parser.add_argument("--do_retrain", action="store_true", help="retrain RL controller")
+    parser.add_argument("--algo", default="SA", type=str, help="The selected algorithm.")
     args = parser.parse_args()
 
-    # env = ENV_CLASSES[args.env]()
+    env = ENV_CLASSES[args.env]()
     with open("configs.json") as f:
         configs = json.load(f)
 
-    DDPG_args = configs[args.env]
-    DDPG_args["enable_retrain"] = args.do_retrain
-    DDPG_args["enable_eval"] = args.do_eval
-    DDPG_args["enable_fuzzing"] = False
-    DDPG_args["enable_falsification"] = False
+    policy_args = configs[args.env]
+    policy = DDPG(env, policy_args)
 
-    DDPG_args["test_episodes"] = args.test_episodes
+    DataT = ModelData[NDArray[np.float_], None]
+    @blackbox(sampling_interval=1.0)
+    def model(static: StaticInput, times: SignalTimes, signals: SignalValues) -> DataT:
+        states = []
+        s = env.reset(np.reshape(np.array(static), (-1, 1)))
+        for i in range(len(times)):
+            states.append(np.array(s))
+            a_policy = policy.predict(np.reshape(np.array(s), (1, policy.s_dim)))
+            s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
 
-    # policy = DDPG(env, DDPG_args)
+        states = np.hstack(states)
+        return ModelData(states, np.asarray(times))
 
-    s = env.reset()
-    initial_conditions = s.tolist()
+    initial_conditions = policy_args["initial_conditions"]
+    phi = policy_args["specification"]
+    specification = RTAMTDense(phi, policy_args["var_map"])
 
-    print(initial_conditions)
-    phi = r"always[0:50] (a >= -0.05 and a <= 0.05 and b >= -0.05 and b <= 0.05 and c >= -0.05 and c <= 0.05 and d >= -0.05 and d <= 0.05)"
-    specification = RTAMTDense(phi, {"a": 0, "b": 0, "c": 0, "d": 0})
-    options = Options(runs=1, iterations=100, interval=(0, 2), static_parameters=initial_conditions)
-    optimizer = UniformRandom()
+    failures = []
 
-    # for iter in tqdm(range(20)):
-    #     noise = np.array([0.01, 0.01, 0.01, 0.01])
-    #     # print(s)
-    #     for sign in [-1, 1]:
-    #         s += sign * noise.reshape(4, 1)
-    #         s_inital = s
-    #         robs = []
-    #         for i in range(100):
-    #             a_policy = policy.predict(np.reshape(np.array(s), (1, policy.s_dim)))
-    #             s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
+    start = time.time()
+    itertimes = 0
+    while True:
+        options = Options(runs=1, iterations=100, interval=(0, 1000), static_parameters=initial_conditions)
+        if args.algo == "SA":
+            optimizer = DualAnnealing()
+        elif args.algo == "UR":
+            optimizer = UniformRandom()
 
-    result = staliro(model, specification, optimizer, options)
+        result = staliro(model, specification, optimizer, options)
+        for run in result.runs:
+            itertimes += len(run.history)
+            for evaluation in run.history:
+                if evaluation.cost < 0:
+                    failures.append(evaluation.sample)
 
-    best_run = result.best_run
-    print(best_run)
-    best_sample = best_run.best_eval.sample
-    best_result = simulate_model(model, options, best_sample)
-    # sample_xs = [evaluation.sample[0] for evaluation in best_run_.history]
-    # sample_ys = [evaluation.sample[1] for evaluation in best_run_.history]
+        logging.info("find %d failures by %d iterations", len(failures), itertimes)
+
+        if time.time() - start > 3600:
+            break
+
+    logging.info("\n find %d failures by %d iterations in total", len(failures), itertimes)
