@@ -32,6 +32,7 @@ if __name__ == "__main__":
     policy = DDPG(env, policy_args)
 
     DataT = ModelData[NDArray[np.float_], None]
+
     @blackbox(sampling_interval=1.0)
     def model(static: StaticInput, times: SignalTimes, signals: SignalValues) -> DataT:
         states = []
@@ -53,7 +54,7 @@ if __name__ == "__main__":
     start = time.time()
     itertimes = 0
     while True:
-        options = Options(runs=1, iterations=100, interval=(0, 1000), static_parameters=initial_conditions)
+        options = Options(runs=1, iterations=50, interval=(0, 1000), static_parameters=initial_conditions)
         if args.algo == "SA":
             optimizer = DualAnnealing()
         elif args.algo == "UR":
@@ -68,7 +69,7 @@ if __name__ == "__main__":
 
         logging.info("find %d failures by %d iterations", len(failures), itertimes)
 
-        if time.time() - start > 3600:
+        if time.time() - start > 600:
             break
 
     logging.info("\n find %d failures by %d iterations in total", len(failures), itertimes)

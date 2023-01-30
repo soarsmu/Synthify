@@ -30,6 +30,26 @@ def init_monitor(vars, specification):
 
     return monitor
 
+def false_checker(policy, env, state):
+    s = env.reset(state)
+    for i in range(1000):
+        a_policy = policy.predict(np.reshape(np.array(s), (1, policy.s_dim)))
+        s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
+        if terminal and i < 1000:
+            return True
+    return False
+
+@blackbox(sampling_interval=1.0)
+def model(static: StaticInput, times: SignalTimes, signals: SignalValues):
+    states = []
+    s = env.reset(np.reshape(np.array(static), (-1, 1)))
+    for i in range(len(times)):
+        states.append(np.array(s))
+        a_policy = policy.predict(np.reshape(np.array(s), (1, policy.s_dim)))
+        s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
+
+    states = np.hstack(states)
+    return ModelData(states, np.asarray(times))
 
 def global_search():
 
@@ -167,10 +187,11 @@ if __name__ == "__main__":
                     rob = monitor.update(i, [(var, float(s_v)) for var, s_v in zip(vars, s)])
                     robs.append(rob)
                     if rob < 0:
-                        print("Falsified at step {}".format(i))
-                        failures.append(s)
-                        flag = True
-                        break
+                        if false_checker(policy, env, s):
+                            print("Falsified at step {}".format(i))
+                            failures.append(s)
+                            flag = True
+                            break
                 if flag:
                     break
             min_robs[spec_index] = -min(min_robs[spec_index], min(robs))
