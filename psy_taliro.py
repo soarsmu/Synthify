@@ -11,7 +11,7 @@ from envs import ENV_CLASSES
 from numpy.typing import NDArray
 
 from staliro.models import ModelData, SignalTimes, SignalValues, StaticInput, blackbox
-from staliro.optimizers import DualAnnealing, UniformRandom
+from staliro.optimizers import DualAnnealing
 from staliro.options import Options
 from staliro.specifications import RTAMTDense
 from staliro.staliro import staliro, simulate_model
@@ -62,10 +62,7 @@ if __name__ == "__main__":
     start = time.time()
     for budget in tqdm(range(10), desc="Falsification of %s" % args.env):
         options = Options(runs=1, iterations=300, interval=(0, 250), static_parameters=initial_conditions)
-        if args.algo == "SA":
-            optimizer = DualAnnealing()
-        elif args.algo == "UR":
-            optimizer = UniformRandom()
+        optimizer = DualAnnealing()
 
         result = staliro(model, specification, optimizer, options)
         for run in result.runs:
