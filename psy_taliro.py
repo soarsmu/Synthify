@@ -5,6 +5,7 @@ import argparse
 
 import numpy as np
 
+from tqdm import tqdm
 from DDPG import DDPG
 from envs import ENV_CLASSES
 from numpy.typing import NDArray
@@ -13,7 +14,7 @@ from staliro.models import ModelData, SignalTimes, SignalValues, StaticInput, bl
 from staliro.optimizers import DualAnnealing, UniformRandom
 from staliro.options import Options
 from staliro.specifications import RTAMTDense
-from staliro.staliro import staliro
+from staliro.staliro import staliro, simulate_model
 
 logging.getLogger().setLevel(logging.INFO)
 
@@ -33,15 +34,19 @@ if __name__ == "__main__":
 
     DataT = ModelData[NDArray[np.float_], None]
 
+    sim_time = 0
+
     @blackbox(sampling_interval=1.0)
     def model(static: StaticInput, times: SignalTimes, signals: SignalValues) -> DataT:
         states = []
+        global sim_time
+        start_time = time.time()
         s = env.reset(np.reshape(np.array(static), (-1, 1)))
         for i in range(len(times)):
             states.append(np.array(s))
             a_policy = policy.predict(np.reshape(np.array(s), (1, policy.s_dim)))
             s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
-
+        sim_time += time.time() - start_time
         states = np.hstack(states)
         return ModelData(states, np.asarray(times))
 
@@ -51,10 +56,12 @@ if __name__ == "__main__":
 
     failures = []
 
+    logging.info("Falsification of %s", args.env)
+    itertimes = []
+    falsification_time = 0
     start = time.time()
-    itertimes = 0
-    while True:
-        options = Options(runs=1, iterations=50, interval=(0, 1000), static_parameters=initial_conditions)
+    for budget in tqdm(range(10), desc="Falsification of %s" % args.env):
+        options = Options(runs=1, iterations=300, interval=(0, 250), static_parameters=initial_conditions)
         if args.algo == "SA":
             optimizer = DualAnnealing()
         elif args.algo == "UR":
@@ -62,14 +69,28 @@ if __name__ == "__main__":
 
         result = staliro(model, specification, optimizer, options)
         for run in result.runs:
-            itertimes += len(run.history)
-            for evaluation in run.history:
+            for id, evaluation in enumerate(run.history):
                 if evaluation.cost < 0:
                     failures.append(evaluation.sample)
+                    itertimes.append(id+1)
+                    break
 
-        logging.info("find %d failures by %d iterations", len(failures), itertimes)
+    falsification_time += time.time() - start
 
-        if time.time() - start > 600:
-            break
+    logging.info("%d successful trials over 50 trials", len(failures))
+    logging.info("falsification rate wrt. 50 trials is %f", len(failures)/50)
+    logging.info("mean number of simulations over successful trials is %f", np.mean(itertimes))
+    logging.info("median number of simulations over successful trials is %f", np.median(itertimes))
+    logging.info("simulation time is %f", sim_time)
+    logging.info("falsification time is %f", falsification_time)
+    logging.info("non-simulation time ratio %f", (falsification_time - sim_time)/falsification_time)
 
-    logging.info("\n find %d failures by %d iterations in total", len(failures), itertimes)
+    coverage = [0] * len(policy_args["slice_spec"])
+    for failure in tqdm(failures, desc="Coverage of %s" % args.env):
+        sample = simulate_model(model, options, failure)
+        for id, spec in enumerate(policy_args["slice_spec"]):
+            specification = RTAMTDense(spec, policy_args["var_map"])
+            if specification.evaluate(sample.states, sample.times) < 0:
+                coverage[id] += 1
+
+    logging.info("coverage of slice specifications is %s", np.count_nonzero(coverage)/len(coverage))

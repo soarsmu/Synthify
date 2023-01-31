@@ -48,7 +48,7 @@ def evolution_dynamics(env, para, policy, n_vars, len_episodes, n_population=50,
             s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
             for p in range(n_population):
                 new_coffset = coffset + sigma * noise[p]
-                d_linear = new_coffset[:n_vars-1].dot(s_old)+ new_coffset[n_vars-1]
+                d_linear = new_coffset[:n_vars-1].dot(np.vstack((s_old[para], a_policy)))+ new_coffset[n_vars-1]
                 dynamic = s[para]
                 distance[p] = - np.abs(dynamic - d_linear)
             std_distance = (distance - np.mean(distance)) / np.std(distance)
