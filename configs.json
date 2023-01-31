@@ -34,6 +34,11 @@
         "random_seed": 6553,
         "tau": 0.005,
         "model_path": "./checkpoints/pendulum/model.chkp",
-        "test_episodes_len": 5000
+        "test_episodes_len": 5000,
+        "initial_conditions": [[-0.35, 0.35], [-0.35, 0.35]],
+        "specification": "always[0,250] (a >= -0.5 and a <= 0.5 and b >= -0.5 and b <= 0.5)",
+        "slice_spec": ["always[0,250] (a >= -0.5)", "always[0,250] (a <= 0.5)", "always[0,250] (b >= -0.5)", "always[0,250] (b <= 0.5)"],
+        "var_map": {"a": 0, "b": 1},
+        "spec_lens": 4
     }
 }
