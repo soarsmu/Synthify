@@ -10,7 +10,7 @@ from envs import ENV_CLASSES
 
 logging.getLogger().setLevel(logging.INFO)
 
-def evolution_policy(env, policy, n_vars, len_episodes, n_population=50, n_iterations=1, sigma=0.1, alpha=0.05):
+def evolution_policy(env, policy, n_vars, len_episodes, n_population=50, n_iterations=20, sigma=0.1, alpha=0.05):
 
     coffset = np.random.randn(n_vars)
 
@@ -32,7 +32,7 @@ def evolution_policy(env, policy, n_vars, len_episodes, n_population=50, n_itera
     return coffset
 
 
-def evolution_dynamics(env, para, policy, n_vars, len_episodes, n_population=50, n_iterations=1, sigma=0.1, alpha=0.05):
+def evolution_dynamics(env, para, policy, n_vars, len_episodes, n_population=50, n_iterations=20, sigma=0.1, alpha=0.05):
 
     coffset = np.random.randn(n_vars)
 
