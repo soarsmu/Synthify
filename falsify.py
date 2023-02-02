@@ -57,11 +57,11 @@ if __name__ == "__main__":
     vars = list(policy_args["var_map"].keys())
     n_vars = len(vars)
 
-    syn_policy = evolution_policy(env, policy, n_vars+1, 1000)
+    syn_policy = evolution_policy(env, policy, n_vars+1, 250)
 
     syn_dynamics = []
     for i in range(n_vars):
-        syn_dynamics.append(evolution_dynamics(env, 0, policy, 3, 1000))
+        syn_dynamics.append(evolution_dynamics(env, 0, policy, 3, 250))
 
     min_robs = [0] * policy_args["spec_lens"]
     prob = [0] * policy_args["spec_lens"]
@@ -105,6 +105,7 @@ if __name__ == "__main__":
         input_costs = []
         simulations = 0
         start = time.time()
+        success = False
         for iter in range(300):
             inputs = [rng.uniform(bound[0], bound[1]) for bound in initial_conditions]
             rob = cost(inputs)
@@ -115,17 +116,17 @@ if __name__ == "__main__":
                 sim_time += time_cost
                 if real:
                     failures.append(inputs)
+                    success = True
                     min_robs[spec_index] = -min(min_robs[spec_index], max(rob, -1))
                     break
 
-        if len(failures) > 0:
+        if success:
             falsification_time += time.time() - start
             itertimes.append(simulations)
             prob[spec_index] = prob[spec_index] + (1 / times[spec_index]) * (min_robs[spec_index] - prob[spec_index])
             continue
 
         falsification_time += time.time() - start
-
         best_sample = min(input_costs, key=lambda x: x[1])[0]
 
         bounds = []
@@ -142,9 +143,9 @@ if __name__ == "__main__":
             if real:
                 failures.append(res.x)
                 min_robs[spec_index] = -min(min_robs[spec_index], max(res.fun, -1))
+                itertimes.append(simulations)
 
         falsification_time += time.time() - start
-        itertimes.append(simulations)
         prob[spec_index] = prob[spec_index] + (1 / times[spec_index]) * (min_robs[spec_index] - prob[spec_index])
 
 
