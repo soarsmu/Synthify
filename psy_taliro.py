@@ -41,6 +41,10 @@ if __name__ == "__main__":
         states = []
         global sim_time
         start_time = time.time()
+        if args.env == "biology":
+            static = (static[0], 0.0, static[1])
+        elif args.env == "oscillator":
+            static = (static[0], static[1], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ,0.0 ,0.0 ,0.0 ,0.0)
         s = env.reset(np.reshape(np.array(static), (-1, 1)))
         for i in range(len(times)):
             states.append(np.array(s))
@@ -60,7 +64,7 @@ if __name__ == "__main__":
     itertimes = []
     falsification_time = 0
     start = time.time()
-    for budget in tqdm(range(10), desc="Falsification of %s" % args.env):
+    for budget in tqdm(range(50), desc="Falsification of %s" % args.env):
         options = Options(runs=1, iterations=300, interval=(0, 250), static_parameters=initial_conditions)
         optimizer = DualAnnealing()
 
