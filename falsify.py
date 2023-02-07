@@ -81,6 +81,7 @@ if __name__ == "__main__":
     falsification_time = 0
 
     itertimes = []
+    count = 0
     for budget in tqdm(range(50), desc="Falsification of %s" % args.env):
 
         spec_index = sample_spec(specifications, prob)
@@ -110,7 +111,9 @@ if __name__ == "__main__":
             inputs = [rng.uniform(bound[0], bound[1]) for bound in initial_conditions]
             rob = cost(inputs)
             input_costs.append((inputs, rob))
+            print(0)
             if rob < 0:
+                print(1)
                 real, time_cost = false_checker(policy, env, inputs)
                 simulations += 1
                 sim_time += time_cost
@@ -156,7 +159,6 @@ if __name__ == "__main__":
     logging.info("simulation time is %f", sim_time)
     logging.info("falsification time is %f", falsification_time)
     logging.info("non-simulation time ratio %f", (falsification_time - sim_time)/falsification_time)
-
     coverage = [i for i in min_robs if i > 0]
     logging.info("coverage of slice specifications is %s", len(coverage)/len(min_robs))
 
