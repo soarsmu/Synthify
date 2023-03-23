@@ -435,19 +435,53 @@ def DDPG(env, args, replay_buffer=None):
         print("sess has been restored from", args["model_path"])
 
     actor_noise = OrnsteinUhlenbeckActionNoise(mu=np.zeros(action_dim))
-    # if args["enable_retrain"]:
-    #     train(sess, env, args, actor, critic, actor_noise, restorer, replay_buffer)
-
-    # if args["enable_eval"]:
-    #     eval(env, actor, args)
-
-    # if args["enable_fuzzing"]:
-    #     fuzzing(env, actor)
-
-    # if args["enable_falsification"]:
-    #     falsification(env, actor)
 
     return actor
+
+def get_params(env, args, replay_buffer=None):
+    sess = tf.Session()
+    np.random.seed(int(args["random_seed"]))
+    tf.set_random_seed(int(args["random_seed"]))
+
+    state_dim = env.state_dim
+    action_dim = env.action_dim
+    assert (env.u_max == -env.u_min).all()
+    action_bound = env.u_max[0]
+    # print(int(args["minibatch_size"]))
+    # exit()
+    actor = ActorNetwork(sess, list(args["actor_structure"]), state_dim, action_dim, action_bound,
+                         float(args["actor_lr"]), float(args["tau"]),
+                         int(args["minibatch_size"]))
+
+    critic = CriticNetwork(sess, list(args["critic_structure"]), state_dim, action_dim,
+                           float(args["critic_lr"]), float(args["tau"]),
+                           float(args["gamma"]),
+                           actor.get_num_trainable_vars())
+
+    sess.run(tf.global_variables_initializer())
+    restorer = tf.train.Saver(tf.global_variables())
+
+    if tf.train.checkpoint_exists(args["model_path"]):
+        restorer.restore(sess, args["model_path"])
+        print("sess has been restored from", args["model_path"])
+
+    FullyConnected_W_params = []
+    FullyConnected_b_params = []
+    BatchNormalization_beta_params = []
+    BatchNormalization_gamma_params = []
+
+    with sess.as_default():
+        for param in actor.network_params:
+            if "W:" in param.name:
+                FullyConnected_W_params.append(param.eval())
+            elif "b:0" in param.name:
+                FullyConnected_b_params.append(param.eval())
+            elif "beta:0" in param.name:
+                BatchNormalization_beta_params.append(param.eval())
+            elif "gamma:0" in param.name:
+                BatchNormalization_gamma_params.append(param.eval())
+
+    return FullyConnected_W_params, FullyConnected_b_params, BatchNormalization_beta_params, BatchNormalization_gamma_params, actor
 
 @timeit
 def actor_boundary(env, actor, epsoides=1000, steps=100):
