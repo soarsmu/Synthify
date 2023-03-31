@@ -2,8 +2,11 @@ from __future__ import print_function
 from __future__ import division
 
 import os
+import json
 import metrics
+import argparse
 from metrics import timeit
+from envs import ENV_CLASSES
 
 
 ################ Replay Buffer for DDPG ######################
@@ -429,12 +432,16 @@ def DDPG(env, args, replay_buffer=None):
 
     sess.run(tf.global_variables_initializer())
     restorer = tf.train.Saver(tf.global_variables())
-
+    if not os.path.exists(args["model_path"].split("model.chkp")[0]):
+        os.makedirs(args["model_path"].split("model.chkp")[0])
     if tf.train.checkpoint_exists(args["model_path"]):
         restorer.restore(sess, args["model_path"])
         print("sess has been restored from", args["model_path"])
 
     actor_noise = OrnsteinUhlenbeckActionNoise(mu=np.zeros(action_dim))
+
+    if "enable_train" in args.keys() and args["enable_train"] == True:
+        train(sess, env, args, actor, critic, actor_noise, restorer, replay_buffer)
 
     return actor
 
@@ -584,3 +591,22 @@ def generate_replay_buffer_with_K(K, env, buffer_size, epsoides, steps):
             replay_buffer.add(np.reshape(np.array(last_x), (env.state_dim,)), np.reshape(np.array(u), (env.action_dim,)), r, terminal, np.reshape(np.array(xk), (env.state_dim, )))
 
     return replay_buffer
+
+if __name__ == "__main__":
+    print(1)
+    parser = argparse.ArgumentParser(description="Running Options")
+    parser.add_argument("--env", default="pendulum", type=str, help="The selected environment.")
+    parser.add_argument("--train", action="store_true", help="Whether to train RL.")
+    args = parser.parse_args()
+
+    env = ENV_CLASSES[args.env]()
+    with open("configs.json") as f:
+        configs = json.load(f)
+
+    policy_args = configs[args.env]
+
+    if args.train:
+        policy_args["enable_train"] = True
+    print("policy_args:\n", policy_args)
+    policy = DDPG(env, policy_args)
+    policy.sess.close()
