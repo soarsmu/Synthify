@@ -12,6 +12,7 @@ from numpy.typing import NDArray
 
 from staliro.models import ModelData, SignalTimes, SignalValues, StaticInput, blackbox
 from staliro.optimizers import DualAnnealing
+from optimizer import UniformRandom
 from staliro.options import Options
 from staliro.specifications import RTAMTDense
 from staliro.staliro import staliro, simulate_model
@@ -47,9 +48,9 @@ if __name__ == "__main__":
             static = (static[0], static[1], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ,0.0 ,0.0 ,0.0 ,0.0)
         s = env.reset(np.reshape(np.array(static), (-1, 1)))
         for i in range(len(times)):
-            states.append(np.array(s))
             a_policy = policy.predict(np.reshape(np.array(s), (1, policy.s_dim)))
             s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
+            states.append(np.array(s))
         sim_time += time.time() - start_time
         states = np.hstack(states)
         return ModelData(states, np.asarray(times))
@@ -65,8 +66,9 @@ if __name__ == "__main__":
     falsification_time = 0
     start = time.time()
     for budget in tqdm(range(50), desc="Falsification of %s" % args.env):
-        options = Options(runs=1, iterations=300, interval=(0, 250), static_parameters=initial_conditions)
+        options = Options(runs=1, iterations=300, interval=(0, 500), static_parameters=initial_conditions)
         optimizer = DualAnnealing()
+        # optimizer = UniformRandom()
 
         result = staliro(model, specification, optimizer, options)
         for run in result.runs:
@@ -74,6 +76,7 @@ if __name__ == "__main__":
                 if evaluation.cost < 0:
                     failures.append(evaluation.sample)
                     itertimes.append(id+1)
+                    logging.info("%d successful trials over 50 trials", len(failures))
                     break
 
     falsification_time += time.time() - start
