@@ -92,5 +92,5 @@ def self_driving():
     return 0
 
   # Use sheild to directly learn a linear controller
-  env = PolySysEnvironment(f, f_to_str,rewardf, testf, unsafe_string, ds, us, Q, R, s_min, s_max, u_max=u_max, u_min=u_min, bound_x_min=bound_x_min, bound_x_max=bound_x_max, timestep=0.1)
+  env = PolySysEnvironment(f, f_to_str, rewardf, testf, unsafe_string, ds, us, Q, R, s_min, s_max, u_max=u_max, u_min=u_min, bound_x_min=bound_x_min, bound_x_max=bound_x_max, timestep=0.1)
   return env
