@@ -2,15 +2,13 @@
 from z3 import *
 
 import math
-import sympy as sy
 import json
 import logging
 import argparse
 import numpy as np
 import tensorflow as tf
-import sympy
-set_option(max_args=100000, max_lines=100000, max_depth=100000, max_visited=100000)
 
+set_option(max_args=100000, max_lines=100000, max_depth=100000, max_visited=100000)
 
 
 from tqdm import tqdm

@@ -66,7 +66,7 @@ if __name__ == "__main__":
     falsification_time = 0
     start = time.time()
     for budget in tqdm(range(50), desc="Falsification of %s" % args.env):
-        options = Options(runs=1, iterations=300, interval=(0, 500), static_parameters=initial_conditions)
+        options = Options(runs=1, iterations=300, interval=(0, 100), static_parameters=initial_conditions)
         optimizer = DualAnnealing()
         # optimizer = UniformRandom()
 
