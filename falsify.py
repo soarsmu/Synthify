@@ -101,6 +101,7 @@ if __name__ == "__main__":
     falsification_time = 0
 
     itertimes = []
+    linear_itertimes = []
     count = 0
     for budget in tqdm(range(50), desc="Falsification of %s" % args.env):
 
@@ -124,9 +125,10 @@ if __name__ == "__main__":
             states = np.hstack(states)
             return RTAMT_offline.evaluate(states, np.arange(0, 100, 1))
 
-        simulations = 0
+        real_simulations = 0
+        linear_simulations = 0
         start = time.time()
-        while simulations < 300:
+        while real_simulations < 300:
             spec_index = sample_spec(specifications, prob)
             times[spec_index] += 1
             prob[spec_index] += 1
@@ -146,12 +148,14 @@ if __name__ == "__main__":
                     prob[spec_index] = prob[spec_index] + (1 / times[spec_index]) * (min_robs[spec_index] - prob[spec_index])
                     if evaluation.cost < 0:
                         real, time_cost = false_checker(policy, env, evaluation.sample)
-                        simulations += 1
+                        real_simulations += 1
+                        linear_simulations += id + 1
                         sim_time += time_cost
                         if real:
                             failures.append(evaluation.sample)
                             success = True
-                            itertimes.append(simulations)
+                            itertimes.append(real_simulations)
+                            linear_itertimes.append(linear_simulations)
                             break
                         # else:
                         #     syn_policy = refine(env, policy, syn_policy, n_vars+1, evaluation.sample, 500)
@@ -161,9 +165,9 @@ if __name__ == "__main__":
                 logging.info("%d successful trials over 50 trials", len(failures))
                 logging.info("mean number of simulations over successful trials is %f", np.mean(itertimes))
                 logging.info("median number of simulations over successful trials is %f", np.median(itertimes))
+                logging.info("mean number of linear simulations over successful trials is %f", np.mean(linear_itertimes))
+                logging.info("median number of linear simulations over successful trials is %f", np.median(linear_itertimes))
                 falsification_time += time.time() - start
-                itertimes.append(simulations)
-
                 break
     print(prob)
     # falsification_time += time.time() - start
