@@ -11,8 +11,8 @@ from envs import ENV_CLASSES
 from numpy.typing import NDArray
 
 from staliro.models import ModelData, SignalTimes, SignalValues, StaticInput, blackbox
-from staliro.optimizers import DualAnnealing
-from optimizer import UniformRandom
+# from staliro.optimizers import DualAnnealing
+from optimizer import DualAnnealing
 from staliro.options import Options
 from staliro.specifications import RTAMTDense
 from staliro.staliro import staliro, simulate_model
@@ -66,18 +66,19 @@ if __name__ == "__main__":
     falsification_time = 0
     start = time.time()
     for budget in tqdm(range(50), desc="Falsification of %s" % args.env):
-        options = Options(runs=1, iterations=300, interval=(0, 100), static_parameters=initial_conditions)
+        options = Options(runs=1, iterations=3, interval=(0, 5000), static_parameters=initial_conditions)
         optimizer = DualAnnealing()
         # optimizer = UniformRandom()
 
         result = staliro(model, specification, optimizer, options)
-        for run in result.runs:
-            for id, evaluation in enumerate(run.history):
-                if evaluation.cost < 0:
-                    failures.append(evaluation.sample)
-                    itertimes.append(id+1)
-                    logging.info("%d successful trials over 50 trials", len(failures))
-                    break
+        
+        evaluation = result.runs[0].history[-1]
+        if evaluation.cost < 0 or np.isnan(evaluation.cost) or np.isinf(evaluation.cost):
+            failures.append(evaluation.sample)
+            itertimes.append(len(result.runs[0].history))
+            logging.info("%d successful trials over 50 trials", len(failures))
+            logging.info("mean number of simulations over successful trials is %f", np.mean(itertimes))
+            logging.info("median number of simulations over successful trials is %f", np.median(itertimes))
 
     falsification_time += time.time() - start
 

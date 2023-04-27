@@ -64,6 +64,8 @@ def evolution_policy_with_verify(env, policy, n_vars, len_episodes, FullyConnect
         return np.vectorize(lambda y: If(y >= 0 , y, RealVal(0)))(x)
         # return np.maximum(0, x)
 
+    # print(len(FullyConnected_W_params))
+    # exit()
     if len(FullyConnected_W_params) == 4:
         w1, w2, w3, w4 = FullyConnected_W_params
         b1, b2, b3, b4 = FullyConnected_b_params
@@ -72,7 +74,6 @@ def evolution_policy_with_verify(env, policy, n_vars, len_episodes, FullyConnect
         gamma1, gamma2, gamma3 = BatchNormalization_gamma_params
         u_max = env.u_max[0][0]
         e = math.e
-        yyy = np.zeros(200)
 
         def net(x):
             # x1 = w1.T @ x + b1.reshape(-1, 1)
@@ -95,7 +96,7 @@ def evolution_policy_with_verify(env, policy, n_vars, len_episodes, FullyConnect
             # we omit tanh function here but the results should be close enough
             x4 = x4 * u_max
             return x4[0][0]
-    else:
+    elif len(FullyConnected_W_params) == 3:
         w1, w2, w3 = FullyConnected_W_params
         w1 = w1.T
         w2 = w2.T
@@ -135,6 +136,43 @@ def evolution_policy_with_verify(env, policy, n_vars, len_episodes, FullyConnect
             # we omit tanh function here but the results should be close enough
             x3 = x3 * u_max
             return x3[0][0]
+    elif len(FullyConnected_W_params) == 2:
+        w1, w2 = FullyConnected_W_params
+        w1 = w1.T
+        w2 = w2.T
+        b1, b2 = FullyConnected_b_params
+        b1 = b1.reshape(-1, 1)
+        b2 = b2.reshape(-1, 1)
+        # exit()
+        beta1 = BatchNormalization_beta_params[0]
+        beta1 = beta1.reshape(-1, 1)
+        gamma1 = BatchNormalization_gamma_params[0]
+        gamma1 = gamma1.reshape(-1, 1)
+        u_max = env.u_max[0][0]
+        e = math.e
+
+        def net(x):
+            x1 = w1 @ x + b1
+            scale = gamma1 / np.sqrt(1 + 1e-5)
+            x1 = x1 * scale + beta1
+            y1 = Relu(x1)
+
+            # x2 = w2.T @ y1 + b2.reshape(-1, 1)
+            # scale = gamma2 / np.sqrt(1 + 1e-5)
+            # x2 = x2 * scale.reshape(-1, 1) + (beta2.reshape(-1, 1))
+            # y2 = Relu(x2)
+
+            # # x3 = w3.T @ y2 + b3.reshape(-1, 1)
+            # # scale = gamma3 / np.sqrt(1 + 1e-5)
+            # # x3 = x3 * scale.reshape(-1, 1) + (beta3.reshape(-1, 1))
+            # # y3 = Relu(x3)
+
+            x2 = w2 @ y1 + b2
+            # x4 = (e ** x4 - e ** (-x4)) / (e ** x4 + e ** (-x4))
+            # we omit tanh function here but the results should be close enough
+            x2 = x2 * u_max
+            return x2[0][0]
+
 
     # s = env.reset()
     # print(net(np.array(s)))
@@ -147,8 +185,9 @@ def evolution_policy_with_verify(env, policy, n_vars, len_episodes, FullyConnect
     if n_vars - 1 == 2:
         x = np.array([[Real('x')], [Real('y')]])
     elif n_vars - 1 == 4:
-        # x = np.array([[Real('x')], [Real('y')], [Real('z')], [Real('q')]])
-        x = np.array([[Real('x')]])
+        x = np.array([[Real('x')], [Real('y')], [Real('z')], [Real('q')]])
+        k = np.array([Real('k'), Real('l') ,Real('m') ,Real('n'), Real('o')])
+        # x = np.array([[Real('x')]])
 
     coffset = np.random.randn(n_vars)
 
@@ -184,14 +223,14 @@ def evolution_policy_with_verify(env, policy, n_vars, len_episodes, FullyConnect
             distance[p] = - np.abs(a - a_linear)
         std_distance = (distance - np.mean(distance)) / np.std(distance)
         coffset = coffset + alpha / (n_population * sigma) * np.dot(noise.T, std_distance)
-
-    def func(x):
-        ans = coffset[:n_vars-1].dot(x)+ coffset[n_vars-1]
+    print(coffset)
+    def func(x, k):
+        ans = k[:n_vars-1].dot(x)+ k[n_vars-1]
         return ans[0]
 
     def verify():
 
-        y_true = func(x)
+        y_true = func(x, k)
         y_pred = net(x)
         sol = Solver()
         # sol.add(-0.05 == x[0][0] or 0.05 == x[0][0])
@@ -200,10 +239,10 @@ def evolution_policy_with_verify(env, policy, n_vars, len_episodes, FullyConnect
         # sol.add(-0.05 == x[3][0])
         sol.add(-0.05 <= x[0][0], x[0][0] <= 0.05)
         sol.add(-0.05 <= x[1][0], x[1][0] <= 0.05)
-        # sol.add(-0.05 <= x[2][0], x[2][0] <= 0.05)
-        # sol.add(-0.05 <= x[3][0], x[3][0] <= 0.05)
-        sol.add(Not(Abs(y_pred) <= 0.01))
-
+        sol.add(-0.05 <= x[2][0], x[2][0] <= 0.05)
+        sol.add(-0.05 <= x[3][0], x[3][0] <= 0.05)
+        sol.add(Not(Abs(y_pred-y_pred)<=1))
+        # res = sol.maximize((y_pred-y_true)**2)
         res = sol.check()
 
         print(res)
@@ -212,7 +251,30 @@ def evolution_policy_with_verify(env, policy, n_vars, len_episodes, FullyConnect
         else:
             print("counterexample")
             print(sol.model())
+            return sol.model()
+
     time_v = time.time()
+    while True:
+        counterexample = verify()
+        if counterexample is None:
+            break
+        else:
+            print()
+
+            s = np.array([-0.05, -0.05, 0.05, 0.05])
+            # exit()
+            # s = np.array([counterexample[x[i][0]].as_decimal(10) for i in range(n_vars-1)])
+            a = policy.predict(np.reshape(np.array(s), (1, policy.s_dim)))
+            noise = np.random.randn(int(n_population/2), n_vars)
+            noise = np.vstack((noise, -noise))
+            distance = np.zeros(n_population)
+
+            for p in range(n_population):
+                new_coffset = coffset + sigma * noise[p]
+                a_linear = new_coffset[:n_vars-1].dot(s)+ new_coffset[n_vars-1]
+                distance[p] = - np.abs(a - a_linear)
+            std_distance = (distance - np.mean(distance)) / np.std(distance)
+            coffset = coffset + alpha / (n_population * sigma) * np.dot(noise.T, std_distance)
     verify()
     print(time.time() - time_v)
 

@@ -136,7 +136,7 @@ class DualAnnealing(Optimizer[DualAnnealingResult]):
             return func.eval_sample(Sample(values))
 
         def listener(sample: NDArray[np.float_], robustness: float, ctx: Literal[-1, 0, 1]) -> bool:
-            if robustness < 0 and self.behavior is Behavior.FALSIFICATION:
+            if (robustness < 0 or np.isnan(robustness) or np.isinf(robustness)) and self.behavior is Behavior.FALSIFICATION:
                 return True
 
             return False

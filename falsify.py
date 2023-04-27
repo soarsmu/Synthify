@@ -15,7 +15,7 @@ from ES import evolution_policy, refine, evolution_policy_with_checker
 from numpy.typing import NDArray
 from staliro.models import ModelData, SignalTimes, SignalValues, StaticInput, blackbox
 # from optimizer import UniformRandom, DualAnnealing
-from staliro.optimizers import DualAnnealing
+from optimizer import DualAnnealing
 from staliro.options import Options
 from staliro.specifications import RTAMTDense
 from staliro.staliro import staliro
@@ -31,15 +31,15 @@ def init_monitor(vars, specification):
 
     return monitor
 
-def false_checker(policy, env, state):
-    start = time.time()
-    s = env.reset(np.reshape(np.array(state), (-1, 1)))
-    for i in range(500):
-        a_policy = policy.predict(np.reshape(np.array(s), (1, policy.s_dim)))
-        s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
-        if terminal and i < 500:
-            return True, time.time() - start
-    return False, time.time() - start
+# def false_checker(policy, env, state):
+#     start = time.time()
+#     s = env.reset(np.reshape(np.array(state), (-1, 1)))
+#     for i in range(5000):
+#         a_policy = policy.predict(np.reshape(np.array(s), (1, policy.s_dim)))
+#         s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
+#         if terminal and i < 5000:
+#             return True, time.time() - start
+#     return False, time.time() - start
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Running Options")
@@ -78,7 +78,7 @@ if __name__ == "__main__":
         sim_time += time.time() - start_time
         states = np.hstack(states)
         return ModelData(states, np.asarray(times))
-
+    
     # syn_dynamics = []
     # for i in range(n_vars):
     #     syn_dynamics.append(evolution_dynamics(env, 0, policy, 3, 250))
@@ -117,13 +117,21 @@ if __name__ == "__main__":
         def cost(s):
             states = []
             s = np.reshape(np.array(s), (-1, 1))
-            for i in range(500):
-                a_linear = syn_policy[:n_vars].dot(s) + syn_policy[n_vars]
+            for i in range(5000):
+                # a_linear = syn_policy[:n_vars].dot(s) + syn_policy[n_vars]
+                a_policy = policy.predict(np.reshape(np.array(s), (1, policy.s_dim)))
                 # s = np.vstack([syn_dynamic[:2].dot(np.vstack((s[id], a_linear))) + syn_dynamic[2] for id, syn_dynamic in enumerate(syn_dynamics)])
-                s, r, terminal = env.step(a_linear.reshape(policy.a_dim, 1))
+                s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
                 states.append(np.array(s))
             states = np.hstack(states)
-            return RTAMT_offline.evaluate(states, np.arange(0, 100, 1))
+            return RTAMT_offline.evaluate(states, np.arange(0, 5000, 1))
+        
+        def false_checker(state):
+            start = time.time()
+            real_cost = cost(state)    
+            if real_cost < 0 or np.isnan(real_cost) or np.isinf(real_cost):
+                    return True, time.time() - start
+            return False, time.time() - start
 
         real_simulations = 0
         linear_simulations = 0
@@ -138,7 +146,7 @@ if __name__ == "__main__":
             # phi = policy_args["specification"]
             RTAMT_offline = RTAMTDense(phi, policy_args["var_map"])
             success = False
-            options = Options(runs=1, iterations=300, interval=(0, 100), static_parameters=initial_conditions)
+            options = Options(runs=1, iterations=300, interval=(0, 5000), static_parameters=initial_conditions)
             optimizer = DualAnnealing()
             result = staliro(model, RTAMT_offline, optimizer, options)
             for run in result.runs:
@@ -146,17 +154,19 @@ if __name__ == "__main__":
                     # print(evaluation.cost)
                     min_robs[spec_index] = -min(min_robs[spec_index], max(evaluation.cost, -1))
                     prob[spec_index] = prob[spec_index] + (1 / times[spec_index]) * (min_robs[spec_index] - prob[spec_index])
-                    if evaluation.cost < 0:
-                        real, time_cost = false_checker(policy, env, evaluation.sample)
-                        real_simulations += 1
-                        linear_simulations += id + 1
-                        sim_time += time_cost
-                        if real:
-                            failures.append(evaluation.sample)
-                            success = True
-                            itertimes.append(real_simulations)
-                            linear_itertimes.append(linear_simulations)
-                            break
+            
+            evaluation = result.runs[0].history[-1]
+            if evaluation.cost < 0 or np.isnan(evaluation.cost) or np.isinf(evaluation.cost):
+                real, time_cost = false_checker(evaluation.sample)
+                real_simulations += 1
+                linear_simulations += len(result.runs[0].history)
+                sim_time += time_cost
+                if real:
+                    failures.append(evaluation.sample)
+                    success = True
+                    itertimes.append(real_simulations)
+                    linear_itertimes.append(linear_simulations)
+                    # break
                         # else:
                         #     syn_policy = refine(env, policy, syn_policy, n_vars+1, evaluation.sample, 500)
                         # failures.append(evaluation.sample)
