@@ -14,7 +14,6 @@ def self_driving():
   cr = -2
 
   def f(x, u):
-    #We have two aeroplanes with 2 inputs for each controlling its own angular velocity!
     delta = np.zeros((ds, 1), float)
     delta[0, 0] = -v*(x[1,0] - ((pow(x[1,0],3))/6))
     delta[1, 0] = u[0, 0]                   #angular velocity (controlled by AIs)
@@ -91,6 +90,5 @@ def self_driving():
       return -1
     return 0
 
-  # Use sheild to directly learn a linear controller
   env = PolySysEnvironment(f, f_to_str, rewardf, testf, unsafe_string, ds, us, Q, R, s_min, s_max, u_max=u_max, u_min=u_min, bound_x_min=bound_x_min, bound_x_max=bound_x_max, timestep=0.1)
   return env

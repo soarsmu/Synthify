@@ -64,8 +64,11 @@ if __name__ == "__main__":
     logging.info("Falsification of %s", args.env)
     itertimes = []
     falsification_time = 0
-    start = time.time()
-    for budget in tqdm(range(50), desc="Falsification of %s" % args.env):
+    # start = time.time()
+
+    while (falsification_time < 600):
+    # for budget in tqdm(range(50), desc="Falsification of %s" % args.env):
+        start = time.time()
         options = Options(runs=1, iterations=100, interval=(0, 200), static_parameters=initial_conditions)
         optimizer = DualAnnealing()
         # optimizer = UniformRandom()
@@ -80,7 +83,7 @@ if __name__ == "__main__":
             logging.info("mean number of simulations over successful trials is %f", np.mean(itertimes))
             logging.info("median number of simulations over successful trials is %f", np.median(itertimes))
 
-    falsification_time += time.time() - start
+        falsification_time += time.time() - start
 
     logging.info("%d successful trials over 50 trials", len(failures))
     logging.info("falsification rate wrt. 50 trials is %f", len(failures)/50)

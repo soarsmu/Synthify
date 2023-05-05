@@ -61,17 +61,11 @@ if __name__ == "__main__":
     syn_time = time.time()
     syn_policy = evolution_policy(env, policy, n_vars+1, 100)
     logging.info("Synthesis time: %f" % (time.time() - syn_time))
-    inter_time = 0
-    linear_time = 0
-    drl_time = 0
-    print(syn_policy)
-    
 
     @blackbox(sampling_interval=1.0)
     def model(static: StaticInput, times: SignalTimes, signals: SignalValues) -> DataT:
         states = []
         global sim_time
-        global inter_time
         start_time = time.time()
         if args.env == "biology":
             static = (static[0], 0.0, static[1])
@@ -80,14 +74,10 @@ if __name__ == "__main__":
         s = env.reset(np.reshape(np.array(static), (-1, 1)))
         for i in range(len(times)):
             # a_policy = policy.predict(np.reshape(np.array(s), (1, policy.s_dim)))
-            start_time = time.time()
             a_linear = syn_policy[:n_vars].dot(s) + syn_policy[n_vars]
-            sim_time += time.time() - start_time
-            start_time = time.time()
             s, r, terminal = env.step(a_linear.reshape(policy.a_dim, 1))
-            inter_time += time.time() - start_time
             states.append(np.array(s))
-            # sim_time += time.time() - start_time
+        sim_time += time.time() - start_time
         states = np.hstack(states)
         return ModelData(states, np.asarray(times))
     
@@ -103,7 +93,7 @@ if __name__ == "__main__":
     def sample_spec(specifications, prob, eps=0.9):
         p = np.random.uniform(0, 1)
         if(p > eps):
-            arm_to_pull = np.argmin(prob)
+            arm_to_pull = np.argmax(prob)
         else:
             arm_to_pull = np.random.randint(0, policy_args["spec_lens"], 1)[0]
         return arm_to_pull
@@ -116,9 +106,10 @@ if __name__ == "__main__":
     itertimes = []
     linear_itertimes = []
     count = 0
-    for budget in tqdm(range(50), desc="Falsification of %s" % args.env):
+    while (falsification_time < 600):
+    # for budget in tqdm(range(50), desc="Falsification of %s" % args.env):
 
-        spec_index = sample_spec(specifications, min_robs)
+        spec_index = sample_spec(specifications, prob)
         times[spec_index] += 1
         prob[spec_index] += 1
 
@@ -128,7 +119,6 @@ if __name__ == "__main__":
         RTAMT_offline = RTAMTDense(phi, policy_args["var_map"])
 
         def cost(s):
-            global inter_time
             time_cost = 0
             states = []
             s = np.reshape(np.array(s), (-1, 1))
@@ -138,9 +128,7 @@ if __name__ == "__main__":
                 a_policy = policy.predict(np.reshape(np.array(s), (1, policy.s_dim)))
                 time_cost += time.time() - start
                 # s = np.vstack([syn_dynamic[:2].dot(np.vstack((s[id], a_linear))) + syn_dynamic[2] for id, syn_dynamic in enumerate(syn_dynamics)])
-                start = time.time()
                 s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
-                inter_time += time.time() - start
                 states.append(np.array(s))
             states = np.hstack(states)
             return RTAMT_offline.evaluate(states, np.arange(0, 200, 1)), time_cost
@@ -156,7 +144,7 @@ if __name__ == "__main__":
         linear_simulations = 0
         start = time.time()
         while real_simulations < 100:
-            spec_index = sample_spec(specifications, min_robs)
+            spec_index = sample_spec(specifications, prob)
             times[spec_index] += 1
             prob[spec_index] += 1
 
@@ -170,8 +158,8 @@ if __name__ == "__main__":
             result = staliro(model, RTAMT_offline, optimizer, options)
             for run in result.runs:
                 for id, evaluation in enumerate(run.history):
-                    min_robs[spec_index] = min(min_robs[spec_index], max(evaluation.cost, -1))
-                    # prob[spec_index] = prob[spec_index] + (1 / times[spec_index]) * (min_robs[spec_index] - prob[spec_index])
+                    min_robs[spec_index] = -min(min_robs[spec_index], max(evaluation.cost, -1))
+                    prob[spec_index] = prob[spec_index] + (1 / times[spec_index]) * (min_robs[spec_index] - prob[spec_index])
             
             evaluation = result.runs[0].history[-1]
             if evaluation.cost < 0 or np.isnan(evaluation.cost) or np.isinf(evaluation.cost):
@@ -273,7 +261,5 @@ if __name__ == "__main__":
     logging.info("DRL simulation time is %f", real_sim_time)
     logging.info("falsification time is %f", falsification_time)
     logging.info("non-simulation time ratio %f", (falsification_time - sim_time-real_sim_time)/falsification_time)
-    coverage = [i for i in min_robs if i < 0]
+    coverage = [i for i in min_robs if i > 0]
     logging.info("coverage of slice specifications is %s", len(coverage)/len(min_robs))
-
-    print(sim_time, real_sim_time, falsification_time, inter_time)
