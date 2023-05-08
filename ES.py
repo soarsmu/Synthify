@@ -1,3 +1,5 @@
+# Note some functions are Deprecated! We leave them here for future reference as they are useful.
+
 from z3 import *
 set_option(max_args=10000000, max_lines=100000000, max_depth=10000000, max_visited=100000000, precision=2)
 
@@ -15,7 +17,7 @@ from scipy.optimize import rosen, differential_evolution
 
 logging.getLogger().setLevel(logging.INFO)
 
-
+# This function is Deprecated!
 def evolution_policy_with_checker(env, policy, n_vars, len_episodes, threshold, n_population=50, n_iterations=50, sigma=0.1, alpha=0.05):
 
     coffset = np.random.randn(n_vars)
@@ -58,6 +60,7 @@ def evolution_policy_with_checker(env, policy, n_vars, len_episodes, threshold, 
 
     return coffset
 
+# This function is Deprecated!
 def evolution_policy_with_verify(env, policy, n_vars, len_episodes, FullyConnected_W_params, FullyConnected_b_params, BatchNormalization_beta_params, BatchNormalization_gamma_params, n_population=50, n_iterations=50, sigma=0.1, alpha=0.05):
 
     def Relu(x):
@@ -316,6 +319,7 @@ def policy_distance(env, policy, n_vars, coffset, len_episodes):
 
      return abs(distance/len_episodes)
 
+# This function is Deprecated!
 def policy_distance_stat(env, policy, n_vars, coffset, len_episodes):
      s = env.reset()
      distance = 0
@@ -331,6 +335,8 @@ def policy_distance_stat(env, policy, n_vars, coffset, len_episodes):
 
      return mannwhitneyu(a_set_1, a_set_2, method="asymptotic")
 
+
+# This function is Deprecated!
 def refine(env, policy, coffset, n_vars, state, len_episodes, n_population=50, n_iterations=1, sigma=0.1, alpha=0.05):
 
     s_set = []
@@ -357,7 +363,7 @@ def refine(env, policy, coffset, n_vars, state, len_episodes, n_population=50, n
 
     return coffset
 
-
+# This function is Deprecated!
 def evolution_dynamics(env, para, policy, n_vars, len_episodes, n_population=50, n_iterations=20, sigma=0.1, alpha=0.05):
 
     coffset = np.random.randn(n_vars)

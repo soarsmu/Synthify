@@ -1,3 +1,5 @@
+# Some code is commented out because it is not used in the final version of the paper.
+
 import json
 import time
 import rtamt
@@ -64,7 +66,7 @@ if __name__ == "__main__":
     inter_time = 0
     linear_time = 0
     drl_time = 0
-    print(syn_policy)
+    # print(syn_policy)
     
 
     @blackbox(sampling_interval=1.0)
@@ -95,6 +97,7 @@ if __name__ == "__main__":
     # for i in range(n_vars):
     #     syn_dynamics.append(evolution_dynamics(env, 0, policy, 3, 250))
 
+    # epsilon-greedy only use min_robs but no others, the others are deprecated
     min_robs = [0] * policy_args["spec_lens"]
     prob = [0] * policy_args["spec_lens"]
     times = [0] * policy_args["spec_lens"]
@@ -198,7 +201,7 @@ if __name__ == "__main__":
                 logging.info("median number of linear simulations over successful trials is %f", np.median(linear_itertimes))
                 falsification_time += time.time() - start
                 break
-    print(prob)
+    # print(prob)
     # falsification_time += time.time() - start
 
     #     rng = default_rng()
@@ -275,5 +278,3 @@ if __name__ == "__main__":
     logging.info("non-simulation time ratio %f", (falsification_time - sim_time-real_sim_time)/falsification_time)
     coverage = [i for i in min_robs if i < 0]
     logging.info("coverage of slice specifications is %s", len(coverage)/len(min_robs))
-
-    print(sim_time, real_sim_time, falsification_time, inter_time)

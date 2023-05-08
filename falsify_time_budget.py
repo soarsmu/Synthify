@@ -109,7 +109,7 @@ if __name__ == "__main__":
     while (falsification_time < 600):
     # for budget in tqdm(range(50), desc="Falsification of %s" % args.env):
 
-        spec_index = sample_spec(specifications, prob)
+        spec_index = sample_spec(specifications, min_robs)
         times[spec_index] += 1
         prob[spec_index] += 1
 
@@ -158,8 +158,8 @@ if __name__ == "__main__":
             result = staliro(model, RTAMT_offline, optimizer, options)
             for run in result.runs:
                 for id, evaluation in enumerate(run.history):
-                    min_robs[spec_index] = -min(min_robs[spec_index], max(evaluation.cost, -1))
-                    prob[spec_index] = prob[spec_index] + (1 / times[spec_index]) * (min_robs[spec_index] - prob[spec_index])
+                    min_robs[spec_index] = min(min_robs[spec_index], max(evaluation.cost, -1))
+                    # prob[spec_index] = prob[spec_index] + (1 / times[spec_index]) * (min_robs[spec_index] - prob[spec_index])
             
             evaluation = result.runs[0].history[-1]
             if evaluation.cost < 0 or np.isnan(evaluation.cost) or np.isinf(evaluation.cost):
@@ -186,7 +186,7 @@ if __name__ == "__main__":
                 logging.info("median number of linear simulations over successful trials is %f", np.median(linear_itertimes))
                 falsification_time += time.time() - start
                 break
-    print(prob)
+    # print(prob)
     # falsification_time += time.time() - start
 
     #     rng = default_rng()
