@@ -134,7 +134,7 @@ for env in ["cartpole", "quadcopter", "self_driving"]:
     no_sim_rate_syn = []
 
     for num in range(1, iters+1):
-        with open("baseline_"+env+"_"+str(num)+"_time.log") as f:
+        with open("baseline_"+env+"_"+str(num)+".log") as f:
             iter_mean_temp = 0
             iter_median_temp = 0
             rate_temp = 0
@@ -160,7 +160,7 @@ for env in ["cartpole", "quadcopter", "self_driving"]:
             iter_median.append(iter_mean_temp)
             iter_mean_all.append(iter_mean_temp*rate_temp+300*(1-rate_temp))
         try:
-            with open("s2f_"+env+"_"+str(num)+"_time.log") as f:
+            with open("s2f_"+env+"_"+str(num)+".log") as f:
                 iter_mean_temp = 0
                 iter_median_temp = 0
                 rate_temp = 0
@@ -206,16 +206,16 @@ for env in ["cartpole", "quadcopter", "self_driving"]:
     logging.info("\t env: %s", env)
     logging.info("\t\t baseline's coverage: %f, with standard deviation %f \n\t\t\t our coverage: %f, with standard deviation %f \n\t\t\t improvement: %f ", mean(coverage), np.std(coverage, ddof=1), mean(coverage_syn), np.std(coverage_syn, ddof=1), (mean(coverage_syn)-mean(coverage))/mean(coverage))
     logging.info("\t\t baseline falsification rate: %f, with standard deviation %f \n\t\t\t our falsification rate: %f, with standard deviation %f \n\t\t\t improvement: %f ", mean(rate), np.std(rate, ddof=1), mean(rate_syn), np.std(rate_syn, ddof=1), (mean(rate_syn)-mean(rate))/mean(rate))
-    logging.info("\t\t baseline mean number of simulations over successful trials: %f, with standard deviation %f \n\t\t\t our mean number of simulations over successful trials: %f, with standard deviation %f \n\t\t\t improvement: %f", mean(iter_mean), np.std(iter_mean, ddof=1), mean(iter_mean_syn), np.std(iter_mean_syn, ddof=1), (mean(iter_mean_syn)-mean(iter_mean))/mean(iter_mean))
-    logging.info("\t\t baseline mean number of simulations over all trials: %f, with standard deviation %f, our mean number of simulations over all trials: %f, with standard deviation %f, our mean number of linear simulations over all trials: %f, with standard deviation %f, ", mean(iter_mean_all), np.std(iter_mean_all, ddof=1), mean(iter_mean_all_syn), np.std(iter_mean_all_syn, ddof=1), mean(iter_mean_all_syn_lin), np.std(iter_mean_all_syn_lin, ddof=1))
-    logging.info("\t\t baseline simulation time is: %f, with standard deviation %f \n\t\t\t our simulation time is: %f, with standard deviation %f \n\t\t\t improvement: %f", mean(sim_time), np.std(sim_time, ddof=1), mean(sim_time_syn), np.std(sim_time_syn, ddof=1), (mean(sim_time_syn)-mean(sim_time))/mean(sim_time))
+    # logging.info("\t\t baseline mean number of simulations over successful trials: %f, with standard deviation %f \n\t\t\t our mean number of simulations over successful trials: %f, with standard deviation %f \n\t\t\t improvement: %f", mean(iter_mean), np.std(iter_mean, ddof=1), mean(iter_mean_syn), np.std(iter_mean_syn, ddof=1), (mean(iter_mean_syn)-mean(iter_mean))/mean(iter_mean))
+    # logging.info("\t\t baseline mean number of simulations over all trials: %f, with standard deviation %f, our mean number of simulations over all trials: %f, with standard deviation %f, our mean number of linear simulations over all trials: %f, with standard deviation %f, ", mean(iter_mean_all), np.std(iter_mean_all, ddof=1), mean(iter_mean_all_syn), np.std(iter_mean_all_syn, ddof=1), mean(iter_mean_all_syn_lin), np.std(iter_mean_all_syn_lin, ddof=1))
+    # logging.info("\t\t baseline simulation time is: %f, with standard deviation %f \n\t\t\t our simulation time is: %f, with standard deviation %f \n\t\t\t improvement: %f", mean(sim_time), np.std(sim_time, ddof=1), mean(sim_time_syn), np.std(sim_time_syn, ddof=1), (mean(sim_time_syn)-mean(sim_time))/mean(sim_time))
     logging.info("\t\t baseline falsification time is: %f, with standard deviation %f \n\t\t\t our falsification time is: %f, with standard deviation %f \n\t\t\t improvement: %f", mean(fal_time), np.std(fal_time, ddof=1), mean(fal_time_syn), np.std(fal_time_syn, ddof=1), (mean(fal_time_syn)-mean(fal_time))/mean(fal_time))
-    logging.info("\t\t non-simulation time ratio is: %f, with standard deviation %f \n\t\t\t our non-simulation time ratio is: %f, with standard deviation %f \n\t\t\t improvement: %f", mean(no_sim_rate), np.std(no_sim_rate, ddof=1), mean(no_sim_rate_syn), np.std(no_sim_rate_syn, ddof=1), (mean(no_sim_rate_syn)-mean(no_sim_rate))/mean(no_sim_rate))
-    print(coverage,coverage_syn)
+    # logging.info("\t\t non-simulation time ratio is: %f, with standard deviation %f \n\t\t\t our non-simulation time ratio is: %f, with standard deviation %f \n\t\t\t improvement: %f", mean(no_sim_rate), np.std(no_sim_rate, ddof=1), mean(no_sim_rate_syn), np.std(no_sim_rate_syn, ddof=1), (mean(no_sim_rate_syn)-mean(no_sim_rate))/mean(no_sim_rate))
+    # print(coverage,coverage_syn)
     logging.info("\t\t coverage's significance: %s, A 12:: %f %s", mannwhitneyu(coverage, coverage_syn, method="asymptotic"), VD_A(coverage_syn, coverage[:len(coverage_syn)])[0], VD_A(coverage_syn, coverage[:len(coverage_syn)])[1])
     rate = [600/x/50 for x in rate]
     rate_syn = [600/x/50 for x in rate_syn]
-    print(rate, rate_syn)
+    # print(rate, rate_syn)
     logging.info("\t\t FR's significance: %s, A 12: %f, %s", mannwhitneyu(rate, rate_syn, method="asymptotic"), VD_A(rate_syn, rate[:len(rate_syn)])[0], VD_A(rate_syn, rate[:len(rate_syn)])[1])
     logging.info("\t\t simulation time's significance: %s, A 12: %f %s", mannwhitneyu(fal_time, fal_time_syn, method="asymptotic"), VD_A(fal_time[:len(fal_time_syn)], fal_time_syn)[0], VD_A(fal_time[:len(fal_time_syn)], fal_time_syn)[1])
 
