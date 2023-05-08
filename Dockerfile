@@ -13,4 +13,4 @@ WORKDIR /root
 RUN pip3 install --upgrade pip
 RUN pip3 install --upgrade setuptools
 
-RUN pip3 install tensorflow==1.13.1 tflearn==0.5.0 protobuf==3.20.3 rtamt psy-taliro z3-solver tqdm
+RUN pip3 install tensorflow==1.13.1 tflearn==0.5.0 protobuf==3.20.3 rtamt psy-taliro z3-solver tqdm pandas
