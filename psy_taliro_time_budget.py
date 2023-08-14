@@ -69,12 +69,15 @@ if __name__ == "__main__":
     while (falsification_time < 600):
     # for budget in tqdm(range(50), desc="Falsification of %s" % args.env):
         start = time.time()
-        options = Options(runs=1, iterations=100, interval=(0, 200), static_parameters=initial_conditions)
+        time_steps = 200
+        if args.env == "oscillator" or args.env == "quadcopter" or args.env == "lane_keeping":
+            time_steps = 300
+        options = Options(runs=1, iterations=100, interval=(0, time_steps), static_parameters=initial_conditions)
         optimizer = DualAnnealing()
         # optimizer = UniformRandom()
 
         result = staliro(model, specification, optimizer, options)
-        
+
         evaluation = result.runs[0].history[-1]
         if evaluation.cost < 0 or np.isnan(evaluation.cost) or np.isinf(evaluation.cost):
             failures.append(evaluation.sample)
