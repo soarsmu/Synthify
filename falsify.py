@@ -5,14 +5,12 @@ import time
 import rtamt
 import logging
 import argparse
-
 import numpy as np
-from numpy.random import default_rng
 
 from tqdm import tqdm
 from DDPG import DDPG
 from envs import ENV_CLASSES
-from ES import evolution_policy, refine, evolution_policy_with_checker
+from ES import evolution_policy, refine
 
 from numpy.typing import NDArray
 from staliro.models import ModelData, SignalTimes, SignalValues, StaticInput, blackbox
@@ -20,7 +18,7 @@ from staliro.models import ModelData, SignalTimes, SignalValues, StaticInput, bl
 from optimizer import DualAnnealing
 from staliro.options import Options
 from staliro.specifications import RTAMTDense
-from staliro.staliro import staliro
+from staliro.staliro import staliro, simulate_model
 
 def init_monitor(vars, specification):
     monitor = rtamt.STLDiscreteTimeSpecification()
@@ -32,16 +30,6 @@ def init_monitor(vars, specification):
     monitor.pastify()
 
     return monitor
-
-# def false_checker(policy, env, state):
-#     start = time.time()
-#     s = env.reset(np.reshape(np.array(state), (-1, 1)))
-#     for i in range(5000):
-#         a_policy = policy.predict(np.reshape(np.array(s), (1, policy.s_dim)))
-#         s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
-#         if terminal and i < 5000:
-#             return True, time.time() - start
-#     return False, time.time() - start
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Running Options")
@@ -59,15 +47,15 @@ if __name__ == "__main__":
 
     sim_time = 0
     vars = list(policy_args["var_map"].keys())
-    n_vars = len(vars)
+    n_states = policy.s_dim
+    n_actions = policy.a_dim
     syn_time = time.time()
-    syn_policy = evolution_policy(env, policy, n_vars+1, 100)
+    syn_policy = evolution_policy(env, policy, n_states+1, n_actions, 100)
     logging.info("Synthesis time: %f" % (time.time() - syn_time))
     inter_time = 0
     linear_time = 0
     drl_time = 0
-    # print(syn_policy)
-    
+
 
     @blackbox(sampling_interval=1.0)
     def model(static: StaticInput, times: SignalTimes, signals: SignalValues) -> DataT:
@@ -79,20 +67,21 @@ if __name__ == "__main__":
             static = (static[0], 0.0, static[1])
         elif args.env == "oscillator":
             static = (static[0], static[1], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ,0.0 ,0.0 ,0.0 ,0.0)
-        s = env.reset(np.reshape(np.array(static), (-1, 1)))
+        s = env.reset(np.reshape(np.array(static), (policy.s_dim, 1)))
         for i in range(len(times)):
             # a_policy = policy.predict(np.reshape(np.array(s), (1, policy.s_dim)))
             start_time = time.time()
-            a_linear = syn_policy[:n_vars].dot(s) + syn_policy[n_vars]
+            a_linear = syn_policy[:,:n_states].dot(s)+ syn_policy[:,n_states:]
             sim_time += time.time() - start_time
             start_time = time.time()
             s, r, terminal = env.step(a_linear.reshape(policy.a_dim, 1))
+            # s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
             inter_time += time.time() - start_time
             states.append(np.array(s))
             # sim_time += time.time() - start_time
         states = np.hstack(states)
         return ModelData(states, np.asarray(times))
-    
+
     # syn_dynamics = []
     # for i in range(n_vars):
     #     syn_dynamics.append(evolution_dynamics(env, 0, policy, 3, 250))
@@ -115,6 +104,7 @@ if __name__ == "__main__":
     # sim_time = 0
     real_sim_time = 0
     falsification_time = 0
+    refine_time = 0
 
     itertimes = []
     linear_itertimes = []
@@ -133,9 +123,19 @@ if __name__ == "__main__":
         def cost(s):
             global inter_time
             time_cost = 0
+            time_steps = 200
             states = []
-            s = np.reshape(np.array(s), (-1, 1))
-            for i in range(200):
+            if args.env == "biology":
+                s = (s[0], 0.0, s[1])
+            elif args.env == "oscillator":
+                s = (s[0], s[1], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ,0.0 ,0.0 ,0.0 ,0.0)
+                time_steps = 300
+            elif args.env == "quadcopter":
+                time_steps = 300
+            elif args.env == "lane_keeping":
+                time_steps = 300
+            s = np.reshape(np.array(s), (policy.s_dim, 1))
+            for i in range(time_steps):
                 # a_linear = syn_policy[:n_vars].dot(s) + syn_policy[n_vars]
                 start = time.time()
                 a_policy = policy.predict(np.reshape(np.array(s), (1, policy.s_dim)))
@@ -146,11 +146,11 @@ if __name__ == "__main__":
                 inter_time += time.time() - start
                 states.append(np.array(s))
             states = np.hstack(states)
-            return RTAMT_offline.evaluate(states, np.arange(0, 200, 1)), time_cost
-        
+            return RTAMT_offline.evaluate(states, np.arange(0, time_steps, 1)), time_cost
+
         def false_checker(state):
             # start = time.time()
-            real_cost, time_cost = cost(state)    
+            real_cost, time_cost = cost(state)
             if real_cost < 0 or np.isnan(real_cost) or np.isinf(real_cost):
                     return True, time_cost
             return False, time_cost
@@ -165,20 +165,24 @@ if __name__ == "__main__":
 
             initial_conditions = policy_args["initial_conditions"]
             phi = specifications[spec_index]
-            # phi = policy_args["specification"]
+            phi = policy_args["specification"]
             RTAMT_offline = RTAMTDense(phi, policy_args["var_map"])
             success = False
-            options = Options(runs=1, iterations=100, interval=(0, 200), static_parameters=initial_conditions)
+            time_steps = 200
+            if args.env == "oscillator" or args.env == "quadcopter" or args.env == "lane_keeping":
+                time_steps = 300
+            options = Options(runs=1, iterations=100, interval=(0, time_steps), static_parameters=initial_conditions)
             optimizer = DualAnnealing()
             result = staliro(model, RTAMT_offline, optimizer, options)
             for run in result.runs:
                 for id, evaluation in enumerate(run.history):
                     min_robs[spec_index] = min(min_robs[spec_index], max(evaluation.cost, -1))
                     # prob[spec_index] = prob[spec_index] + (1 / times[spec_index]) * (min_robs[spec_index] - prob[spec_index])
-            
+
             evaluation = result.runs[0].history[-1]
             if evaluation.cost < 0 or np.isnan(evaluation.cost) or np.isinf(evaluation.cost):
                 real, time_cost = false_checker(evaluation.sample)
+                real = True
                 real_simulations += 1
                 linear_simulations += len(result.runs[0].history)
                 real_sim_time += time_cost
@@ -188,11 +192,18 @@ if __name__ == "__main__":
                     success = True
                     itertimes.append(real_simulations)
                     linear_itertimes.append(linear_simulations)
-                    # break
-                        # else:
-                        #     syn_policy = refine(env, policy, syn_policy, n_vars+1, evaluation.sample, 500)
-                        # failures.append(evaluation.sample)
-                        # itertimes.append(id+1)
+                else:
+                    logging.info("false negative, refining...")
+                    st = time.time()
+                    refine_steps = 5
+                    learning_rate = 0.001
+                    if args.env == "self_driving":
+                        refine_steps = 100
+                        learning_rate = 0.05
+                    syn_policy = refine(env, policy, syn_policy, n_states+1, n_actions, evaluation.sample, refine_steps, alpha=learning_rate)
+                    refine_time += time.time() - st
+                # failures.append(evaluation.sample)
+                # itertimes.append(id+1)
             if success:
                 logging.info("%d successful trials over 50 trials", len(failures))
                 logging.info("mean number of simulations over successful trials is %f", np.mean(itertimes))
@@ -210,10 +221,10 @@ if __name__ == "__main__":
     #     simulations = 0
     #     start = time.time()
     #     success = False
-    #     # for iter in range(300):
+    #     # for iter in range(200):
     #     rng = np.random.default_rng()
     #     inputs = [rng.uniform(bound[0], bound[1]) for bound in initial_conditions]
-    #     res = basinhopping(cost, [rng.uniform(bound[0], bound[1]) for bound in initial_conditions], minimizer_kwargs=minimizer_kwargs, niter=300, seed=rng)
+    #     res = basinhopping(cost, [rng.uniform(bound[0], bound[1]) for bound in initial_conditions], minimizer_kwargs=minimizer_kwargs, niter=200, seed=rng)
     #     if res.fun < 0:
     #         print(res.x)
     #         real, time_cost = false_checker(policy, env, res.x)
@@ -275,6 +286,17 @@ if __name__ == "__main__":
     logging.info("linear simulation time is %f", sim_time)
     logging.info("DRL simulation time is %f", real_sim_time)
     logging.info("falsification time is %f", falsification_time)
+    logging.info("refinement time is %f", refine_time)
+    logging.info("interpolation time is %f", inter_time)
     logging.info("non-simulation time ratio %f", (falsification_time - sim_time-real_sim_time)/falsification_time)
     coverage = [i for i in min_robs if i < 0]
     logging.info("coverage of slice specifications is %s", len(coverage)/len(min_robs))
+    coverage = [0] * len(policy_args["slice_spec"])
+    for failure in tqdm(failures, desc="Coverage of %s" % args.env):
+        sample = simulate_model(model, options, failure)
+        for id, spec in enumerate(policy_args["slice_spec"]):
+            specification = RTAMTDense(spec, policy_args["var_map"])
+            if specification.evaluate(sample.states, sample.times) < 0:
+                coverage[id] += 1
+    print(coverage)
+    logging.info("coverage of slice specifications is %s", np.count_nonzero(coverage)/len(coverage))

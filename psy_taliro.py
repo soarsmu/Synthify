@@ -36,11 +36,13 @@ if __name__ == "__main__":
     DataT = ModelData[NDArray[np.float_], None]
 
     sim_time = 0
+    control_time = 0
 
     @blackbox(sampling_interval=1.0)
     def model(static: StaticInput, times: SignalTimes, signals: SignalValues) -> DataT:
         states = []
         global sim_time
+        global control_time
         start_time = time.time()
         if args.env == "biology":
             static = (static[0], 0.0, static[1])
@@ -48,10 +50,16 @@ if __name__ == "__main__":
             static = (static[0], static[1], 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ,0.0 ,0.0 ,0.0 ,0.0)
         s = env.reset(np.reshape(np.array(static), (-1, 1)))
         for i in range(len(times)):
+            start_time = time.time()
             a_policy = policy.predict(np.reshape(np.array(s), (1, policy.s_dim)))
+            control_time += time.time() - start_time
+            print(control_time)
+            exit()
+            start_time = time.time()
             s, r, terminal = env.step(a_policy.reshape(policy.a_dim, 1))
+            sim_time += time.time() - start_time
             states.append(np.array(s))
-        sim_time += time.time() - start_time
+        # sim_time += time.time() - start_time
         states = np.hstack(states)
         return ModelData(states, np.asarray(times))
 
@@ -63,15 +71,18 @@ if __name__ == "__main__":
 
     logging.info("Falsification of %s", args.env)
     itertimes = []
+    time_steps = 200
+    if args.env == "oscillator" or args.env == "quadcopter" or args.env == "lane_keeping":
+        time_steps = 300
     falsification_time = 0
     start = time.time()
     for budget in tqdm(range(50), desc="Falsification of %s" % args.env):
-        options = Options(runs=1, iterations=100, interval=(0, 200), static_parameters=initial_conditions)
+        options = Options(runs=1, iterations=100, interval=(0, time_steps), static_parameters=initial_conditions)
         optimizer = DualAnnealing()
         # optimizer = UniformRandom()
 
         result = staliro(model, specification, optimizer, options)
-        
+
         evaluation = result.runs[0].history[-1]
         if evaluation.cost < 0 or np.isnan(evaluation.cost) or np.isinf(evaluation.cost):
             failures.append(evaluation.sample)
@@ -87,6 +98,7 @@ if __name__ == "__main__":
     logging.info("mean number of simulations over successful trials is %f", np.mean(itertimes))
     logging.info("median number of simulations over successful trials is %f", np.median(itertimes))
     logging.info("simulation time is %f", sim_time)
+    logging.info("control time is %f", control_time)
     logging.info("falsification time is %f", falsification_time)
     logging.info("non-simulation time ratio %f", (falsification_time - sim_time)/falsification_time)
 
@@ -97,5 +109,5 @@ if __name__ == "__main__":
             specification = RTAMTDense(spec, policy_args["var_map"])
             if specification.evaluate(sample.states, sample.times) < 0:
                 coverage[id] += 1
-
+    print(coverage)
     logging.info("coverage of slice specifications is %s", np.count_nonzero(coverage)/len(coverage))
