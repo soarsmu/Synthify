@@ -15,7 +15,6 @@ from collections import deque
 
 
 class ReplayBuffer(object):
-
     def __init__(self, buffer_size, random_seed=123):
         """
         The right side of the deque contains the most recent experiences
@@ -63,9 +62,19 @@ import tflearn
 import numpy as np
 import tensorflow as tf
 
-class ActorNetwork(object):
 
-    def __init__(self, sess, actor_structure,state_dim, action_dim, action_bound, learning_rate, tau, batch_size):
+class ActorNetwork(object):
+    def __init__(
+        self,
+        sess,
+        actor_structure,
+        state_dim,
+        action_dim,
+        action_bound,
+        learning_rate,
+        tau,
+        batch_size,
+    ):
         self.sess = sess
         self.actor_structure = actor_structure
         self.s_dim = state_dim
@@ -81,32 +90,45 @@ class ActorNetwork(object):
         self.network_params = tf.trainable_variables()
 
         # Target Network
-        self.target_inputs, self.target_out, self.target_scaled_out = self.create_actor_network()
+        (
+            self.target_inputs,
+            self.target_out,
+            self.target_scaled_out,
+        ) = self.create_actor_network()
 
         self.target_network_params = tf.trainable_variables()[
-        len(self.network_params):]
+            len(self.network_params) :
+        ]
 
         # Op for periodically updating target network with online network
         # weights
-        self.update_target_network_params = \
-            [self.target_network_params[i].assign(tf.multiply(self.network_params[i], self.tau) +
-                                                  tf.multiply(self.target_network_params[i], 1. - self.tau))
-             for i in range(len(self.target_network_params))]
+        self.update_target_network_params = [
+            self.target_network_params[i].assign(
+                tf.multiply(self.network_params[i], self.tau)
+                + tf.multiply(self.target_network_params[i], 1.0 - self.tau)
+            )
+            for i in range(len(self.target_network_params))
+        ]
 
         # This gradient will be provided by the critic network
         self.action_gradient = tf.placeholder(tf.float32, [None, self.a_dim])
 
         # Combine the gradients here
         self.unnormalized_actor_gradients = tf.gradients(
-            self.scaled_out, self.network_params, -self.action_gradient)
-        self.actor_gradients = list(map(lambda x: tf.div(x, self.batch_size), self.unnormalized_actor_gradients))
+            self.scaled_out, self.network_params, -self.action_gradient
+        )
+        self.actor_gradients = list(
+            map(lambda x: tf.div(x, self.batch_size), self.unnormalized_actor_gradients)
+        )
 
         # Optimization Op
-        self.optimize = tf.train.AdamOptimizer(self.learning_rate).\
-            apply_gradients(zip(self.actor_gradients, self.network_params))
+        self.optimize = tf.train.AdamOptimizer(self.learning_rate).apply_gradients(
+            zip(self.actor_gradients, self.network_params)
+        )
 
-        self.num_trainable_vars = len(
-            self.network_params) + len(self.target_network_params)
+        self.num_trainable_vars = len(self.network_params) + len(
+            self.target_network_params
+        )
 
     def create_actor_network(self):
         inputs = tflearn.input_data(shape=[None, self.s_dim])
@@ -119,26 +141,25 @@ class ActorNetwork(object):
         # Final layer weights are init to Uniform[-3e-3, 3e-3]
         w_init = tflearn.initializations.uniform(minval=-0.003, maxval=0.003)
         out = tflearn.fully_connected(
-            net, self.a_dim, activation="tanh", weights_init=w_init)
+            net, self.a_dim, activation="tanh", weights_init=w_init
+        )
         # Scale output to -action_bound to action_bound
         scaled_out = tf.multiply(out, self.action_bound)
         return inputs, out, scaled_out
 
     def train(self, inputs, a_gradient):
-        self.sess.run(self.optimize, feed_dict={
-            self.inputs: inputs,
-            self.action_gradient: a_gradient
-        })
+        self.sess.run(
+            self.optimize,
+            feed_dict={self.inputs: inputs, self.action_gradient: a_gradient},
+        )
 
     def predict(self, inputs):
-        return self.sess.run(self.scaled_out, feed_dict={
-    self.inputs: inputs
-    })
+        return self.sess.run(self.scaled_out, feed_dict={self.inputs: inputs})
 
     def predict_target(self, inputs):
-        return self.sess.run(self.target_scaled_out, feed_dict={
-    self.target_inputs: inputs
-    })
+        return self.sess.run(
+            self.target_scaled_out, feed_dict={self.target_inputs: inputs}
+        )
 
     def update_target_network(self):
         self.sess.run(self.update_target_network_params)
@@ -153,7 +174,17 @@ class CriticNetwork(object):
     The action must be obtained from the output of the Actor network.
     """
 
-    def __init__(self, sess, critic_structure, state_dim, action_dim, learning_rate, tau, gamma, num_actor_vars):
+    def __init__(
+        self,
+        sess,
+        critic_structure,
+        state_dim,
+        action_dim,
+        learning_rate,
+        tau,
+        gamma,
+        num_actor_vars,
+    ):
         self.sess = sess
         self.critic_structure = critic_structure
         self.s_dim = state_dim
@@ -167,23 +198,31 @@ class CriticNetwork(object):
         self.network_params = tf.trainable_variables()[num_actor_vars:]
 
         # Target Network
-        self.target_inputs, self.target_action, self.target_out = self.create_critic_network()
-        self.target_network_params = tf.trainable_variables()[(len(self.network_params) + num_actor_vars):]
+        (
+            self.target_inputs,
+            self.target_action,
+            self.target_out,
+        ) = self.create_critic_network()
+        self.target_network_params = tf.trainable_variables()[
+            (len(self.network_params) + num_actor_vars) :
+        ]
 
         # Op for periodically updating target network with online network
         # weights with regularization
-        self.update_target_network_params = \
-            [self.target_network_params[i].assign(tf.multiply(self.network_params[i], self.tau) \
-                                                  + tf.multiply(self.target_network_params[i], 1. - self.tau))
-             for i in range(len(self.target_network_params))]
+        self.update_target_network_params = [
+            self.target_network_params[i].assign(
+                tf.multiply(self.network_params[i], self.tau)
+                + tf.multiply(self.target_network_params[i], 1.0 - self.tau)
+            )
+            for i in range(len(self.target_network_params))
+        ]
 
         # Network target (y_i)
         self.predicted_q_value = tf.placeholder(tf.float32, [None, 1])
 
         # Define loss and optimization Op
         self.loss = tflearn.mean_square(self.predicted_q_value, self.out)
-        self.optimize = tf.train.AdamOptimizer(
-            self.learning_rate).minimize(self.loss)
+        self.optimize = tf.train.AdamOptimizer(self.learning_rate).minimize(self.loss)
 
         # Get the gradient of the net w.r.t. the action.
         # For each action in the minibatch (i.e., for each x in xs),
@@ -208,7 +247,8 @@ class CriticNetwork(object):
         t2 = tflearn.fully_connected(action, self.critic_structure[-1])
 
         net = tflearn.activation(
-            tf.matmul(net, t1.W) + tf.matmul(action, t2.W) + t2.b, activation="relu")
+            tf.matmul(net, t1.W) + tf.matmul(action, t2.W) + t2.b, activation="relu"
+        )
 
         # linear layer connected to 1 output representing Q(s,a)
         # Weights are init to Uniform[-3e-3, 3e-3]
@@ -217,37 +257,39 @@ class CriticNetwork(object):
         return inputs, action, out
 
     def train(self, inputs, action, predicted_q_value):
-        return self.sess.run([self.out, self.optimize], feed_dict={
-    self.inputs: inputs,
-    self.action: action,
-    self.predicted_q_value: predicted_q_value
-    })
+        return self.sess.run(
+            [self.out, self.optimize],
+            feed_dict={
+                self.inputs: inputs,
+                self.action: action,
+                self.predicted_q_value: predicted_q_value,
+            },
+        )
 
     def predict(self, inputs, action):
-        return self.sess.run(self.scaled_out, feed_dict={
-    self.inputs: inputs,
-    self.action: action
-    })
+        return self.sess.run(
+            self.scaled_out, feed_dict={self.inputs: inputs, self.action: action}
+        )
 
     def predict_target(self, inputs, action):
-        return self.sess.run(self.target_out, feed_dict={
-    self.target_inputs: inputs,
-    self.target_action: action
-    })
+        return self.sess.run(
+            self.target_out,
+            feed_dict={self.target_inputs: inputs, self.target_action: action},
+        )
 
     def action_gradients(self, inputs, actions):
-        return self.sess.run(self.action_grads, feed_dict={
-    self.inputs: inputs,
-    self.action: actions
-    })
+        return self.sess.run(
+            self.action_grads, feed_dict={self.inputs: inputs, self.action: actions}
+        )
 
     def update_target_network(self):
         self.sess.run(self.update_target_network_params)
 
+
 # Taken from https://github.com/openai/baselines/blob/master/baselines/ddpg/noise.py, which is
 # based on http://math.stackexchange.com/questions/1287634/implementing-ornstein-uhlenbeck-in-matlab
 class OrnsteinUhlenbeckActionNoise:
-    def __init__(self, mu, sigma=0.3, theta=.15, dt=1e-2, x0=None):
+    def __init__(self, mu, sigma=0.3, theta=0.15, dt=1e-2, x0=None):
         self.theta = theta
         self.mu = mu
         self.sigma = sigma
@@ -256,8 +298,11 @@ class OrnsteinUhlenbeckActionNoise:
         self.reset()
 
     def __call__(self):
-        x = self.x_prev + self.theta * (self.mu - self.x_prev) * self.dt + \
-            self.sigma * np.sqrt(self.dt) * np.random.normal(size=self.mu.shape)
+        x = (
+            self.x_prev
+            + self.theta * (self.mu - self.x_prev) * self.dt
+            + self.sigma * np.sqrt(self.dt) * np.random.normal(size=self.mu.shape)
+        )
         self.x_prev = x
         return x
 
@@ -265,11 +310,13 @@ class OrnsteinUhlenbeckActionNoise:
         self.x_prev = self.x0 if self.x0 is not None else np.zeros_like(self.mu)
 
     def __repr__(self):
-        return "OrnsteinUhlenbeckActionNoise(mu={}, sigma={})".format(self.mu, self.sigma)
+        return "OrnsteinUhlenbeckActionNoise(mu={}, sigma={})".format(
+            self.mu, self.sigma
+        )
+
 
 @timeit
 def train(sess, env, args, actor, critic, actor_noise, restorer, replay_buffer=None):
-
     # Initialize target network weights
     actor.update_target_network()
     critic.update_target_network()
@@ -290,7 +337,7 @@ def train(sess, env, args, actor, critic, actor_noise, restorer, replay_buffer=N
         s = env.reset()
         ep_reward = 0
         ep_ave_max_q = 0
-        #temp_r = env.bad_reward
+        # temp_r = env.bad_reward
 
         for j in range(int(args["max_episode_len"])):
             # Added exploration noise
@@ -300,18 +347,29 @@ def train(sess, env, args, actor, critic, actor_noise, restorer, replay_buffer=N
 
             # if r > temp_r:
             #   temp_r = r
-            replay_buffer.add(np.reshape(np.array(s), (actor.s_dim,)), np.reshape(np.array(a), (actor.a_dim,)), r,
-                              terminal, np.reshape(np.array(s2), (actor.s_dim, )))
+            replay_buffer.add(
+                np.reshape(np.array(s), (actor.s_dim,)),
+                np.reshape(np.array(a), (actor.a_dim,)),
+                r,
+                terminal,
+                np.reshape(np.array(s2), (actor.s_dim,)),
+            )
 
             # Keep adding experience to the memory until
             # there are at least minibatch size samples
             if replay_buffer.size() > int(args["minibatch_size"]):
-                s_batch, a_batch, r_batch, t_batch, s2_batch = \
-                    replay_buffer.sample_batch(int(args["minibatch_size"]))
+                (
+                    s_batch,
+                    a_batch,
+                    r_batch,
+                    t_batch,
+                    s2_batch,
+                ) = replay_buffer.sample_batch(int(args["minibatch_size"]))
 
                 # Calculate targets
                 target_q = critic.predict_target(
-                    s2_batch, actor.predict_target(s2_batch))
+                    s2_batch, actor.predict_target(s2_batch)
+                )
 
                 y_i = []
                 for k in range(int(args["minibatch_size"])):
@@ -322,7 +380,8 @@ def train(sess, env, args, actor, critic, actor_noise, restorer, replay_buffer=N
 
                 # Update the critic given the targets
                 predicted_q_value, _ = critic.train(
-                    s_batch, a_batch, np.reshape(y_i, (int(args["minibatch_size"]), 1)))
+                    s_batch, a_batch, np.reshape(y_i, (int(args["minibatch_size"]), 1))
+                )
 
                 ep_ave_max_q += np.amax(predicted_q_value)
 
@@ -348,7 +407,6 @@ def train(sess, env, args, actor, critic, actor_noise, restorer, replay_buffer=N
 
         reward_list.append(ep_reward)
         if count % 10 == 0:
-
             reward_mean = np.mean(reward_list)
 
             if reward_mean > last_reward:
@@ -361,16 +419,19 @@ def train(sess, env, args, actor, critic, actor_noise, restorer, replay_buffer=N
             count = 0
             del reward_list[:]
 
-        print("| Reward: {:.4f} | Episode: {:d} | Qmax: {:.4f}".format(float(ep_reward), i, (ep_ave_max_q / float(j+1))))
+        print(
+            "| Reward: {:.4f} | Episode: {:d} | Qmax: {:.4f}".format(
+                float(ep_reward), i, (ep_ave_max_q / float(j + 1))
+            )
+        )
         # print "x\n", env.xk
         # print "u\n", env.last_u
-
 
     print("min reward:", last_reward)
     if last_reward == env.bad_reward:
         restorer.save(sess, args["model_path"])
-    model_path = os.path.split(args["model_path"])[0]+"/"
-    final_model = model_path+"final_model.chkp"
+    model_path = os.path.split(args["model_path"])[0] + "/"
+    final_model = model_path + "final_model.chkp"
     restorer.save(sess, final_model)
     print("sess has been saved to", final_model)
 
@@ -390,23 +451,30 @@ def eval(env, actor, args):
             s, r, terminal = env.step(a.reshape(actor.a_dim, 1))
 
             if terminal:
-                if i != args["test_episodes_len"]-1:
+                if i != args["test_episodes_len"] - 1:
                     if np.abs(r) < env.terminal_err:
                         success_time += 1
                     else:
                         fail_time += 1
                         fail_list.append((init_s, s))
                     break
-            elif i == args["test_episodes_len"]-1:
+            elif i == args["test_episodes_len"] - 1:
                 success_time += 1
 
-        print("initial state:\n", init_s, "\nstate at terminal step:\n".format(i), s, "\nlast action:\n", env.last_u)
+        print(
+            "initial state:\n",
+            init_s,
+            "\nstate at terminal step:\n".format(i),
+            s,
+            "\nlast action:\n",
+            env.last_u,
+        )
         print("----terminal step: {} ----".format(i))
 
     print("Success: {}, Fail: {}".format(success_time, fail_time))
 
     print("#############Fail List:###############")
-    for (i, e) in fail_list:
+    for i, e in fail_list:
         print("initial state: \n{}\nend state: \n{}\n----".format(i, e))
 
 
@@ -421,14 +489,27 @@ def DDPG(env, args, replay_buffer=None):
     action_bound = env.u_max[0]
     # print(int(args["minibatch_size"]))
     # exit()
-    actor = ActorNetwork(sess, list(args["actor_structure"]), state_dim, action_dim, action_bound,
-                         float(args["actor_lr"]), float(args["tau"]),
-                         int(args["minibatch_size"]))
+    actor = ActorNetwork(
+        sess,
+        list(args["actor_structure"]),
+        state_dim,
+        action_dim,
+        action_bound,
+        float(args["actor_lr"]),
+        float(args["tau"]),
+        int(args["minibatch_size"]),
+    )
 
-    critic = CriticNetwork(sess, list(args["critic_structure"]), state_dim, action_dim,
-                           float(args["critic_lr"]), float(args["tau"]),
-                           float(args["gamma"]),
-                           actor.get_num_trainable_vars())
+    critic = CriticNetwork(
+        sess,
+        list(args["critic_structure"]),
+        state_dim,
+        action_dim,
+        float(args["critic_lr"]),
+        float(args["tau"]),
+        float(args["gamma"]),
+        actor.get_num_trainable_vars(),
+    )
 
     sess.run(tf.global_variables_initializer())
     restorer = tf.train.Saver(tf.global_variables())
@@ -445,6 +526,7 @@ def DDPG(env, args, replay_buffer=None):
 
     return actor
 
+
 def get_params(env, args, replay_buffer=None):
     sess = tf.Session()
     np.random.seed(int(args["random_seed"]))
@@ -456,14 +538,27 @@ def get_params(env, args, replay_buffer=None):
     action_bound = env.u_max[0]
     # print(int(args["minibatch_size"]))
     # exit()
-    actor = ActorNetwork(sess, list(args["actor_structure"]), state_dim, action_dim, action_bound,
-                         float(args["actor_lr"]), float(args["tau"]),
-                         int(args["minibatch_size"]))
+    actor = ActorNetwork(
+        sess,
+        list(args["actor_structure"]),
+        state_dim,
+        action_dim,
+        action_bound,
+        float(args["actor_lr"]),
+        float(args["tau"]),
+        int(args["minibatch_size"]),
+    )
 
-    critic = CriticNetwork(sess, list(args["critic_structure"]), state_dim, action_dim,
-                           float(args["critic_lr"]), float(args["tau"]),
-                           float(args["gamma"]),
-                           actor.get_num_trainable_vars())
+    critic = CriticNetwork(
+        sess,
+        list(args["critic_structure"]),
+        state_dim,
+        action_dim,
+        float(args["critic_lr"]),
+        float(args["tau"]),
+        float(args["gamma"]),
+        actor.get_num_trainable_vars(),
+    )
 
     sess.run(tf.global_variables_initializer())
     restorer = tf.train.Saver(tf.global_variables())
@@ -488,7 +583,14 @@ def get_params(env, args, replay_buffer=None):
             elif "gamma:0" in param.name:
                 BatchNormalization_gamma_params.append(param.eval())
 
-    return FullyConnected_W_params, FullyConnected_b_params, BatchNormalization_beta_params, BatchNormalization_gamma_params, actor
+    return (
+        FullyConnected_W_params,
+        FullyConnected_b_params,
+        BatchNormalization_beta_params,
+        BatchNormalization_gamma_params,
+        actor,
+    )
+
 
 @timeit
 def actor_boundary(env, actor, epsoides=1000, steps=100):
@@ -497,18 +599,35 @@ def actor_boundary(env, actor, epsoides=1000, steps=100):
 
     for ep in range(epsoides):
         s = env.reset()
-        max_boundary, min_boundary = metrics.find_boundary(s, max_boundary, min_boundary)
+        max_boundary, min_boundary = metrics.find_boundary(
+            s, max_boundary, min_boundary
+        )
         for i in range(steps):
-            a = actor.predict(np.reshape(np.array(s), (1, actor.s_dim))) #+ actor_noise()
+            a = actor.predict(
+                np.reshape(np.array(s), (1, actor.s_dim))
+            )  # + actor_noise()
             s, _, terminal = env.step(a.reshape(actor.a_dim, 1))
-            max_boundary, min_boundary = metrics.find_boundary(s, max_boundary, min_boundary)
+            max_boundary, min_boundary = metrics.find_boundary(
+                s, max_boundary, min_boundary
+            )
             if terminal:
                 break
 
     print("max_boundary:\n{}\nmin_boundary:\n{}".format(max_boundary, min_boundary))
 
+
 @timeit
-def random_search_for_init_buffer(env, args, target, trance_number, rewardf, max_count=5000, terminal_err=1, repeat_time=100, buffer_size=1000000):
+def random_search_for_init_buffer(
+    env,
+    args,
+    target,
+    trance_number,
+    rewardf,
+    max_count=5000,
+    terminal_err=1,
+    repeat_time=100,
+    buffer_size=1000000,
+):
     action_list = []
     xk_list_batch = []
     action_list_batch = []
@@ -525,12 +644,18 @@ def random_search_for_init_buffer(env, args, target, trance_number, rewardf, max
             a = np.random.uniform(-1, 1, [env.action_dim, 1])
             xk = env.simulation(a)
             if rewardf is None:
+
                 def rewardf(xk, u):
                     pass
+
                 # Bad Terminal
-            if (((np.array(xk) < env.x_max)*(np.array(xk) > env.x_min)).all(axis=1).any()) or rewardf(xk, a) < r:
+            if (
+                ((np.array(xk) < env.x_max) * (np.array(xk) > env.x_min))
+                .all(axis=1)
+                .any()
+            ) or rewardf(xk, a) < r:
                 count += 1
-                if count == max_count-1:
+                if count == max_count - 1:
                     count = 0
                     if len(action_list) != 0:
                         env.xk = xk_list.pop()
@@ -544,8 +669,8 @@ def random_search_for_init_buffer(env, args, target, trance_number, rewardf, max
                 continue
 
             # Good Terminal
-            if np.sum(np.abs(xk-target)) < terminal_err:
-                print("process: {}/{}".format(i+1,trance_number))
+            if np.sum(np.abs(xk - target)) < terminal_err:
+                print("process: {}/{}".format(i + 1, trance_number))
                 xk_list.append(xk)
                 action_list.append(a)
                 break
@@ -565,8 +690,8 @@ def random_search_for_init_buffer(env, args, target, trance_number, rewardf, max
         # model_path = model_path+"batch.json"
         batch = zip([xk_l[0] for xk_l in xk_list_batch], action_list_batch)
 
-
     return generate_replay_buffer(env, batch, buffer_size)
+
 
 def generate_replay_buffer(env, batch, buffer_size):
     replay_buffer = ReplayBuffer(buffer_size)
@@ -575,8 +700,15 @@ def generate_replay_buffer(env, batch, buffer_size):
         for u in action_list:
             x1 = env.xk
             _, r, terminal = env.step(u)
-            replay_buffer.add(np.reshape(np.array(x1), (env.state_dim,)), np.reshape(np.array(u), (env.action_dim,)), r, terminal, np.reshape(np.array(env.xk), (env.state_dim, )))
+            replay_buffer.add(
+                np.reshape(np.array(x1), (env.state_dim,)),
+                np.reshape(np.array(u), (env.action_dim,)),
+                r,
+                terminal,
+                np.reshape(np.array(env.xk), (env.state_dim,)),
+            )
     return replay_buffer
+
 
 @timeit
 def generate_replay_buffer_with_K(K, env, buffer_size, epsoides, steps):
@@ -588,14 +720,23 @@ def generate_replay_buffer_with_K(K, env, buffer_size, epsoides, steps):
             u = K.dot(xk)
             xk, r, terminal = env.step(u)
             last_x = xk
-            replay_buffer.add(np.reshape(np.array(last_x), (env.state_dim,)), np.reshape(np.array(u), (env.action_dim,)), r, terminal, np.reshape(np.array(xk), (env.state_dim, )))
+            replay_buffer.add(
+                np.reshape(np.array(last_x), (env.state_dim,)),
+                np.reshape(np.array(u), (env.action_dim,)),
+                r,
+                terminal,
+                np.reshape(np.array(xk), (env.state_dim,)),
+            )
 
     return replay_buffer
+
 
 if __name__ == "__main__":
     print(1)
     parser = argparse.ArgumentParser(description="Running Options")
-    parser.add_argument("--env", default="pendulum", type=str, help="The selected environment.")
+    parser.add_argument(
+        "--env", default="pendulum", type=str, help="The selected environment."
+    )
     parser.add_argument("--train", action="store_true", help="Whether to train RL.")
     args = parser.parse_args()
 

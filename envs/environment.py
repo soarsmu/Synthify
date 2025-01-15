@@ -2,15 +2,34 @@ from __future__ import print_function
 
 import numpy as np
 
-#Environment for linear systems
+
+# Environment for linear systems
 class Environment:
     """
     Environment for DDPG Algorithm.
     """
-    def __init__(self, A, B, u_min, u_max, s_min, s_max, x_min, x_max, Q, R, \
-                 continuous=False, rewardf=None, timestep = 0.01, unsafe=False, \
-                 unsafe_property=None, multi_boundary=False, bad_reward=-900, terminal_err=0):
 
+    def __init__(
+        self,
+        A,
+        B,
+        u_min,
+        u_max,
+        s_min,
+        s_max,
+        x_min,
+        x_max,
+        Q,
+        R,
+        continuous=False,
+        rewardf=None,
+        timestep=0.01,
+        unsafe=False,
+        unsafe_property=None,
+        multi_boundary=False,
+        bad_reward=-900,
+        terminal_err=0,
+    ):
         # State transform matrix
         self.A = A
         self.B = B
@@ -62,7 +81,10 @@ class Environment:
         if x0 is None:
             # sample an initial condition for system
             self.x0 = np.matrix(
-                [[np.random.uniform(self.s_min[i, 0], self.s_max[i, 0])] for i in range(self.state_dim)],
+                [
+                    [np.random.uniform(self.s_min[i, 0], self.s_max[i, 0])]
+                    for i in range(self.state_dim)
+                ],
             )
         else:
             self.x0 = x0
@@ -75,13 +97,17 @@ class Environment:
         if self.rewardf:
             return self.rewardf(x, u)
         else:
-            return -(np.sum(self.Q * np.abs(x).reshape([self.state_dim, 1])) \
-        + np.sum(self.R * np.abs(u).reshape([self.action_dim, 1])))
+            return -(
+                np.sum(self.Q * np.abs(x).reshape([self.state_dim, 1]))
+                + np.sum(self.R * np.abs(u).reshape([self.action_dim, 1]))
+            )
 
     def step(self, uk, coffset=None):
-        #uk = np.array([[0]])
+        # uk = np.array([[0]])
         def f(x, u):
-            return self.A.dot(x.reshape([self.state_dim, 1])) + self.B.dot(u.reshape([self.action_dim, 1]))
+            return self.A.dot(x.reshape([self.state_dim, 1])) + self.B.dot(
+                u.reshape([self.action_dim, 1])
+            )
 
         self.last_u = uk
 
@@ -91,8 +117,11 @@ class Environment:
             uk = self.u_min
 
         if self.continuous:
-            self.xk = self.xk + self.timestep * (f(self.xk, uk)) \
-            if coffset is None else self.xk + self.timestep * (f(self.xk, uk) + coffset)
+            self.xk = (
+                self.xk + self.timestep * (f(self.xk, uk))
+                if coffset is None
+                else self.xk + self.timestep * (f(self.xk, uk) + coffset)
+            )
         else:
             self.xk = f(self.xk, uk)
 
@@ -119,18 +148,21 @@ class Environment:
         else:
             # Bad Terminal
             if self.multi_boundary:
-                if ((np.array(xk) < self.x_max)*(np.array(xk) > self.x_min)).all(axis=1).any():
+                if (
+                    ((np.array(xk) < self.x_max) * (np.array(xk) > self.x_min))
+                    .all(axis=1)
+                    .any()
+                ):
                     terminal = True
                     reward = self.bad_reward
             else:
-                if ((np.array(xk) < self.x_max)*(np.array(xk) > self.x_min)).all():
+                if ((np.array(xk) < self.x_max) * (np.array(xk) > self.x_min)).all():
                     terminal = True
                     reward = self.bad_reward
             # Good Terminal
             if np.abs(reward) < self.terminal_err:
                 print("good terminal")
                 terminal = True
-
 
         return xk, reward, terminal
 
@@ -144,25 +176,51 @@ class Environment:
             uk = self.u_min
 
         if self.continuous:
-            xk = self.xk + self.timestep * (f(self.xk, uk)) \
-            if coffset is None else self.xk + self.timestep * (f(self.xk, uk) + coffset)
+            xk = (
+                self.xk + self.timestep * (f(self.xk, uk))
+                if coffset is None
+                else self.xk + self.timestep * (f(self.xk, uk) + coffset)
+            )
         else:
             xk = f(self.xk, uk)
 
         return xk
 
 
-#Environment for Polynomial Systems
+# Environment for Polynomial Systems
 class PolySysEnvironment:
     """
     Environment for DDPG Algorithm.
     """
-    def __init__(self, polyf, polyf_to_str, rewardf, testf, unsafe_property, \
-                 state_dim, action_dim, Q, R, s_min, s_max, \
-                 x_min=None, x_max=None, u_min=None, u_max=None, bound_x_min=None, bound_x_max=None, disturbance_x_min=None, disturbance_x_max=None, \
-                 continuous=True, timestep = 0.01, unsafe=False, \
-                 multi_boundary=False, bad_reward=-900, terminal_err=0):
 
+    def __init__(
+        self,
+        polyf,
+        polyf_to_str,
+        rewardf,
+        testf,
+        unsafe_property,
+        state_dim,
+        action_dim,
+        Q,
+        R,
+        s_min,
+        s_max,
+        x_min=None,
+        x_max=None,
+        u_min=None,
+        u_max=None,
+        bound_x_min=None,
+        bound_x_max=None,
+        disturbance_x_min=None,
+        disturbance_x_max=None,
+        continuous=True,
+        timestep=0.01,
+        unsafe=False,
+        multi_boundary=False,
+        bad_reward=-900,
+        terminal_err=0,
+    ):
         # system dynamics:
         self.polyf = polyf
         self.polyf_to_str = polyf_to_str
@@ -215,7 +273,10 @@ class PolySysEnvironment:
         if x0 is None:
             # sample an initial condition for system
             self.x0 = np.matrix(
-                [[np.random.uniform(self.s_min[i, 0], self.s_max[i, 0])] for i in range(self.state_dim)],
+                [
+                    [np.random.uniform(self.s_min[i, 0], self.s_max[i, 0])]
+                    for i in range(self.state_dim)
+                ],
             )
         else:
             self.x0 = np.matrix(x0)
@@ -227,8 +288,10 @@ class PolySysEnvironment:
         if self.rewardf:
             return self.rewardf(x, self.Q, u, self.R)
         else:
-            return -(np.sum(self.Q * np.abs(x).reshape([self.state_dim, 1])) \
-        + np.sum(self.R * np.abs(u).reshape([self.action_dim, 1])))
+            return -(
+                np.sum(self.Q * np.abs(x).reshape([self.state_dim, 1]))
+                + np.sum(self.R * np.abs(u).reshape([self.action_dim, 1]))
+            )
 
     def step(self, uk, coffset=None):
         f = self.polyf
@@ -236,8 +299,11 @@ class PolySysEnvironment:
         self.last_u = uk
 
         if self.continuous:
-            self.xk = self.xk + self.timestep * (f(self.xk, uk)) \
-            if coffset is None else self.xk + self.timestep * (f(self.xk, uk) + coffset)
+            self.xk = (
+                self.xk + self.timestep * (f(self.xk, uk))
+                if coffset is None
+                else self.xk + self.timestep * (f(self.xk, uk) + coffset)
+            )
         else:
             self.xk = f(self.xk, uk)
 
@@ -262,8 +328,11 @@ class PolySysEnvironment:
         f = self.polyf
 
         if self.continuous:
-            xk = self.xk + self.timestep * (f(self.xk, uk)) \
-            if coffset is None else self.xk + self.timestep * (f(self.xk, uk) + coffset)
+            xk = (
+                self.xk + self.timestep * (f(self.xk, uk))
+                if coffset is None
+                else self.xk + self.timestep * (f(self.xk, uk) + coffset)
+            )
         else:
             xk = f(self.xk, uk)
 

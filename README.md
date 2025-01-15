@@ -15,42 +15,23 @@ docker run -it -v YOUR_LOCAL_REPO_PATH:/root/Synthify YOUR_CUSTOM_TAG
 
 # How to run
 
-**Setting 1**: Given the same number of falsification trials, i.e., 50 trials, we provide two bash scripts to run *Synthify* and *PSY-TaLiRo* on the four AI-enabled control systems, respectively. Note that the script will repeat experiments for 10 times on each control system. Please run the following scripts to reproduce the results of *Synthify*:
+Given the same number of falsification trials, i.e., 50 trials, we provide two bash scripts to run *Synthify* and *PSY-TaLiRo* on the four AI-enabled control systems, respectively. Note that the script will repeat experiments for 10 times on each control system. Please run the following scripts to reproduce the results of *Synthify*:
 ```
 bash synthify.sh
 ```
 It contains the following command for each control system:
 ```
-python3 falsify.py --env=ENV
+python3 synthify.py --env=ENV
 ```
 Please run the following scripts to reproduce the results of *PSY-TaLiRo*:
 ```
-bash baseline.sh
+bash psy_taliro.sh
 ```
 It contains the following command for each control system:
 ```
 python3 psy_taliro.py --env=ENV
 ```
 
-We strongly recommend users to run the above bash scripts, as they help save the results of each trial in a separate file for subsequent analysis. Otherwise, results of each trial will be printed on the screen, and users need to manually save them for subsequent analysis.
-
-**Setting 2**: Given the same time budget, i.e., 10 minutes, we provide the following command to run *Synthify* and *PSY-TaLiRo* on the four AI-enabled control systems, respectively. Note that the script will repeat experiments for 10 times on each control system.
- Please run the following scripts to reproduce the results of *Synthify*:
-```
-bash synthify_time.sh
-```
-It contains the following command for each control system:
-```
-python3 falsify_time_budget.py --env=ENV
-```
-Please run the following scripts to reproduce the results of *PSY-TaLiRo*:
-```
-bash baseline_time.sh
-```
-It contains the following command for each control system:
-```
-python3 psy_taliro_time_budget.py --env=ENV
-```
 We strongly recommend users to run the above bash scripts, as they help save the results of each trial in a separate file for subsequent analysis. Otherwise, results of each trial will be printed on the screen, and users need to manually save them for subsequent analysis.
 
 **Parse results**: After saving the results of each trial into `results` folder, please run the following command to parse the results:
@@ -67,4 +48,22 @@ If users want to train the AI controllers by themselves, please run the followin
 ```
 python3 DDPG.py --env=ENV
 ```
-But we do not recommend users to do so, as it may take a long time to train the AI controllers. We have provided the trained AI controllers in `checkpoints` folder.
+But we do not recommend users to do so, as it may take a long time to train the AI controllers. We have provided the trained AI controllers in `checkpoints` folder, and we truly thank the authors of [An inductive synthesis framework for verifiable reinforcement learning](https://dl.acm.org/doi/10.1145/3314221.3314638) for providing the trained AI controllers in the repository of [VRL](https://github.com/RU-Automated-Reasoning-Group/VRL_CodeReview).
+
+If you have any questions, please feel free to contact us at `jiekeshi@smu.edu.sg`.
+
+# Citation
+
+If you use our code, please cite our paper:
+```
+@misc{shi2024findingsafetyviolationsaienabled,
+      title={Finding Safety Violations of AI-Enabled Control Systems through the Lens of Synthesized Proxy Programs},
+      author={Jieke Shi and Zhou Yang and Junda He and Bowen Xu and Dongsun Kim and DongGyun Han and David Lo},
+      year={2024},
+      eprint={2410.04986},
+      archivePrefix={arXiv},
+      primaryClass={cs.SE},
+      url={https://arxiv.org/abs/2410.04986},
+}
+```
+The paper is available at https://arxiv.org/abs/2410.04986. The bibtex is now the ArXiv version, and we will update it to the final version once it is available.

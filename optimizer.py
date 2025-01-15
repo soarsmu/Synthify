@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import enum
 import os
-import statistics as stats
 from itertools import takewhile
 from typing import Iterable, Optional, Sequence, Union
 
@@ -79,7 +78,9 @@ class UniformRandom(Optimizer[UniformRandomResult]):
         def sample_uniform(bounds: Bounds, rng: Generator) -> Sample:
             return Sample([rng.uniform(bound.lower, bound.upper) for bound in bounds])
 
-        def minimize(samples: Samples, func: ObjectiveFn, nprocs: Optional[int]) -> Iterable[float]:
+        def minimize(
+            samples: Samples, func: ObjectiveFn, nprocs: Optional[int]
+        ) -> Iterable[float]:
             if nprocs is None:
                 return func.eval_samples(samples)
             else:
@@ -135,12 +136,15 @@ class DualAnnealing(Optimizer[DualAnnealingResult]):
         def wrapper(values: NDArray[np.float_]) -> float:
             return func.eval_sample(Sample(values))
 
-        def listener(sample: NDArray[np.float_], robustness: float, ctx: Literal[-1, 0, 1]) -> bool:
-            if (robustness < 0 or np.isnan(robustness) or np.isinf(robustness)) and self.behavior is Behavior.FALSIFICATION:
+        def listener(
+            sample: NDArray[np.float_], robustness: float, ctx: Literal[-1, 0, 1]
+        ) -> bool:
+            if (
+                robustness < 0 or np.isnan(robustness) or np.isinf(robustness)
+            ) and self.behavior is Behavior.FALSIFICATION:
                 return True
 
             return False
-        
 
         result = optimize.dual_annealing(
             wrapper,

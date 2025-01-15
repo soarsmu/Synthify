@@ -14,19 +14,20 @@ from .car_platoon_8 import car_platoon_8
 from .lane_keeping import lane_keeping
 from .oscillator import oscillator
 
-ENV_CLASSES = {"cartpole": cartpole,
-               "pendulum": pendulum,
-               "satellite": satellite,
-               "dcmotor": dcmotor,
-               "tape": tape,
-               "magnetic_pointer": magnetic_pointer,
-               "suspension": suspension,
-               "biology": biology,
-               "cooling": cooling,
-               "quadcopter": quadcopter,
-               "self_driving": self_driving,
-               "car_platoon_4": car_platoon_4,
-               "car_platoon_8": car_platoon_8,
-               "lane_keeping": lane_keeping,
-               "oscillator": oscillator
-               }
+ENV_CLASSES = {
+    "cartpole": cartpole,
+    "pendulum": pendulum,
+    "satellite": satellite,
+    "dcmotor": dcmotor,
+    "tape": tape,
+    "magnetic_pointer": magnetic_pointer,
+    "suspension": suspension,
+    "biology": biology,
+    "cooling": cooling,
+    "quadcopter": quadcopter,
+    "self_driving": self_driving,
+    "car_platoon_4": car_platoon_4,
+    "car_platoon_8": car_platoon_8,
+    "lane_keeping": lane_keeping,
+    "oscillator": oscillator,
+}
