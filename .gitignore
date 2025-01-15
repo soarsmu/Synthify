@@ -133,7 +133,7 @@ dmypy.json
 *.yml
 *.pkl
 
-*.chkp.*
-checkpoints
+# *.chkp.*
+# checkpoints
 
 .vscode
