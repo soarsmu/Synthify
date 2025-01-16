@@ -1,6 +1,6 @@
 # Synthify
 
-This is the replication package of our TOSEM paper "Finding Safety Violations of AI-Enabled Control Systems through the Lens of Synthesized Proxy Programs". It contains the source code for applying our tool (*Synthify*) and the baseline (*PSY-TaLiRo*) on the falsification of AI-enabled control systems. The plant of each control system is in `envs` and the AI controllers are in `checkpoints`. Moreover, the hyperparameters of each control systems are in `config.json`.
+This is the replication package of the ACM TOSEM paper "Finding Safety Violations of AI-Enabled Control Systems through the Lens of Synthesized Proxy Programs", co-authored by [Jieke Shi](https://jiekeshi.github.io), [Zhou Yang](https://yangzhou6666.github.io), [Junda He](https://jundahe.notion.site/Junda-He-ab59db5a4604450dadd66591c1c357da), [Bowen Xu](https://www.bowenxu.me), [Dongsun Kim](https://www.darkrsw.net), [DongGyun Han](https://donggyun.com), and [David Lo](http://www.mysmu.edu/faculty/davidlo/). It contains the source code for applying our tool (*Synthify*) and the baseline (*PSY-TaLiRo*) on the falsification of AI-enabled control systems. The plant of each control system is in `envs` and the AI controllers are in `checkpoints`. Moreover, the hyperparameters of each control systems are in `config.json`.
 
 # Environment configuration
 
